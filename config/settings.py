@@ -143,17 +143,20 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database — PostgreSQL by default; USE_SQLITE=1 for local dev / CI without Postgres
 USE_SQLITE = os.getenv('USE_SQLITE', '').strip().lower() in ('1', 'true', 'yes')
-
 DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('DB_NAME', ''),
-            'USER': os.getenv('DB_USER', ''),
-            'PASSWORD': os.getenv('DB_PASSWORD', ''),
-            'HOST': os.getenv('DB_HOST', 'localhost'),
-            'PORT': os.getenv('DB_PORT', '5432'),
-        }
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
+        'PORT': os.getenv('DB_PORT'),
+        'CONN_MAX_AGE': 600,
+        'OPTIONS': {
+            'client_encoding': 'UTF8',
+        },
     }
+}
     
 
 
