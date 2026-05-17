@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from content.models import AboutCompany, Banner, News, NewsImage
+from content.models import AboutCompany, Banner, Certification, News, NewsImage
 
 
 def _preview_img(url: str, css_class: str = 'admin-image-preview') -> str:
@@ -27,12 +27,13 @@ class NewsImageInline(admin.TabularInline):
 
 @admin.register(Banner)
 class BannerAdmin(admin.ModelAdmin):
-    list_display = ('title', 'banner_thumb', 'ordering', 'is_active', 'updated_at')
+    list_display = ('title', 'type', 'banner_thumb', 'ordering', 'is_active', 'updated_at')
     list_filter = ('is_active',)
+    search_fields = ('title', 'type')
     ordering = ('ordering', 'id')
     readonly_fields = ('image_preview',)
     fieldsets = (
-        (None, {'fields': ('title', 'description', 'ordering', 'is_active')}),
+        (None, {'fields': ('title', 'type', 'description', 'ordering', 'is_active')}),
         ('Изображение', {'fields': ('image_preview', 'image')}),
     )
 
@@ -46,6 +47,30 @@ class BannerAdmin(admin.ModelAdmin):
     def image_preview(self, obj: Banner):
         if obj.pk and obj.image and obj.image.name:
             return _preview_img(obj.image.url)
+        return '—'
+
+
+@admin.register(Certification)
+class CertificationAdmin(admin.ModelAdmin):
+    list_display = ('name', 'cert_thumb', 'created_at')
+    search_fields = ('name',)
+    ordering = ('-created_at',)
+    readonly_fields = ('thumb_preview', 'created_at')
+    fieldsets = (
+        (None, {'fields': ('name', 'created_at')}),
+        ('Файлы', {'fields': ('thumb_preview', 'thumbnail_image', 'pdf')}),
+    )
+
+    @admin.display(description='Превью')
+    def cert_thumb(self, obj: Certification):
+        if obj.thumbnail_image and obj.thumbnail_image.name:
+            return _preview_img(obj.thumbnail_image.url, 'admin-image-preview--list')
+        return '—'
+
+    @admin.display(description='Превью')
+    def thumb_preview(self, obj: Certification):
+        if obj.pk and obj.thumbnail_image and obj.thumbnail_image.name:
+            return _preview_img(obj.thumbnail_image.url)
         return '—'
 
 

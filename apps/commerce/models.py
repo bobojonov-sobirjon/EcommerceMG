@@ -1,7 +1,10 @@
 from decimal import Decimal
+from pyexpat import model
 
 from django.core.validators import MinValueValidator
 from django.db import models
+
+
 
 
 class Manufacturer(models.Model):

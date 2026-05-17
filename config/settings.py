@@ -71,6 +71,7 @@ JAZZMIN_SETTINGS = {
     ],
     "icons": {
         "content.Banner": "fas fa-image",
+        "content.Certification": "fas fa-certificate",
         "content.AboutCompany": "fas fa-building",
         "content.News": "fas fa-newspaper",
         "content.NewsImage": "fas fa-photo-video",
@@ -313,6 +314,7 @@ SPECTACULAR_SETTINGS = {
     'COMPONENT_SPLIT_REQUEST': True,
     'TAGS': [
         {'name': 'Главная — баннеры', 'description': 'Слайдер главной страницы (только чтение).'},
+        {'name': 'Сертификаты', 'description': 'Сертификаты компании: превью и PDF (только чтение).'},
         {'name': 'Компания', 'description': 'Страница «О компании» с метриками.'},
         {'name': 'Новости', 'description': 'Лента материалов с фильтром по типу и пагинацией.'},
         {'name': 'Обращения', 'description': 'Форма обратной связи (POST).'},
@@ -321,7 +323,8 @@ SPECTACULAR_SETTINGS = {
         {
             'name': 'Каталог — товары',
             'description': (
-                'Каталог запчастей и шин: фильтрация по типу, производителю, цене, поиск по названию.'
+                'Каталог запчастей и шин: фильтрация по типу, производителю, цене, '
+                'сортировка по цене (order_price=asc|desc), поиск по названию.'
             ),
         },
          {'name': 'Заказы', 'description': 'Приём заказов с корзины (гостевая отправка через POST).'},

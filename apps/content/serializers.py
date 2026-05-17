@@ -1,13 +1,57 @@
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from content.models import AboutCompany, Banner, News, NewsImage
+from content.models import AboutCompany, Banner, Certification, News, NewsImage
+
+
+def _absolute_file_url(serializer, file_field) -> str | None:
+    if not file_field or not file_field.name:
+        return None
+    request = serializer.context.get('request')
+    url = file_field.url
+    if request:
+        return request.build_absolute_uri(url)
+    return url
 
 
 class BannerSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
     class Meta:
         model = Banner
-        fields = ('id', 'title', 'description', 'image')
+        fields = ('id', 'title', 'type', 'description', 'image')
+
+    @extend_schema_field(serializers.CharField(allow_null=True, required=False))
+    def get_image(self, obj: Banner):
+        return _absolute_file_url(self, obj.image)
+
+
+class CertificationSerializer(serializers.ModelSerializer):
+    thumbnail_image = serializers.SerializerMethodField()
+    pdf = serializers.SerializerMethodField()
+    pdf_size_mb = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Certification
+        fields = ('id', 'name', 'thumbnail_image', 'pdf', 'pdf_size_mb', 'created_at')
+
+    @extend_schema_field(serializers.CharField(allow_null=True, required=False))
+    def get_thumbnail_image(self, obj: Certification):
+        return _absolute_file_url(self, obj.thumbnail_image)
+
+    @extend_schema_field(serializers.CharField(allow_null=True, required=False))
+    def get_pdf(self, obj: Certification):
+        return _absolute_file_url(self, obj.pdf)
+
+    @extend_schema_field(serializers.FloatField(allow_null=True, required=False))
+    def get_pdf_size_mb(self, obj: Certification):
+        if not obj.pdf or not obj.pdf.name:
+            return None
+        try:
+            size = obj.pdf.size
+        except (OSError, ValueError):
+            return None
+        return round(size / (1024 * 1024), 3)
 
 
 class AboutCompanySerializer(serializers.ModelSerializer):

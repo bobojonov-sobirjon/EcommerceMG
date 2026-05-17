@@ -5,6 +5,12 @@ class Banner(models.Model):
     """Баннер слайдера на главной."""
 
     title = models.CharField('Заголовок', max_length=255)
+    type = models.CharField(
+        'Тип (акцент на слайде)',
+        max_length=128,
+        blank=True,
+        help_text='Например: НАДЕЖНОСТЬ — крупная подпись на фоне слайда',
+    )
     description = models.TextField('Описание', blank=True)
     image = models.ImageField('Изображение', upload_to='banners/%Y/%m/')
     ordering = models.PositiveSmallIntegerField('Порядок', default=0)
@@ -89,3 +95,20 @@ class NewsImage(models.Model):
 
     def __str__(self) -> str:
         return f'Изображение к новости {self.news_id}'
+
+
+class Certification(models.Model):
+    """Сертификат для блока «Наши сертификаты»."""
+
+    name = models.CharField('Название', max_length=512)
+    thumbnail_image = models.ImageField('Превью', upload_to='certificates/thumbs/%Y/%m/')
+    pdf = models.FileField('PDF', upload_to='certificates/pdf/%Y/%m/')
+    created_at = models.DateTimeField('Дата добавления', auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = 'Сертификат'
+        verbose_name_plural = 'Сертификаты'
+        ordering = ('-created_at', '-id')
+
+    def __str__(self) -> str:
+        return self.name

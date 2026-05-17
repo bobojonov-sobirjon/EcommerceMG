@@ -43,6 +43,16 @@ def product_filter(qs, request):
     return qs
 
 
+def product_price_order(qs, request):
+    """Сортировка по цене: order_price=asc | desc."""
+    raw = (request.query_params.get('order_price') or '').strip().lower()
+    if raw in ('asc', 'price_asc', 'low', 'cheaper'):
+        return qs.order_by('price', 'id')
+    if raw in ('desc', 'price_desc', 'high', 'expensive'):
+        return qs.order_by('-price', '-id')
+    return qs.order_by('ordering', '-id')
+
+
 class ManufacturerListView(APIView):
     permission_classes = [AllowAny]
 
@@ -114,6 +124,13 @@ class ProductListView(APIView):
                 description='Максимальная цена с НДС',
             ),
             OpenApiParameter(
+                name='order_price',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description='Сортировка по цене: asc (дешевле) или desc (дороже)',
+                enum=['asc', 'desc'],
+            ),
+            OpenApiParameter(
                 name='page',
                 type=OpenApiTypes.INT,
                 location=OpenApiParameter.QUERY,
@@ -134,8 +151,8 @@ class ProductListView(APIView):
         page = int(request.query_params.get('page', 1) or 1)
         page_size = int(request.query_params.get('page_size', 20) or 20)
         qs = Product.objects.select_related('manufacturer').prefetch_related('images').all()
-        qs = qs.order_by('ordering', '-id')
         qs = product_filter(qs, request)
+        qs = product_price_order(qs, request)
         page_ctx = paginate(qs, page=page, page_size=page_size, max_page_size=100)
         ser = ProductListSerializer(
             page_ctx.results,

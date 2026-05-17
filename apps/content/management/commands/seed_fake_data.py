@@ -19,7 +19,7 @@ from commerce.models import (
     ProductImage,
     ProductType,
 )
-from content.models import AboutCompany, Banner, News, NewsImage, NewsType
+from content.models import AboutCompany, Banner, Certification, News, NewsImage, NewsType
 from leads.models import Contact, ContactPhone, FeedbackMessage
 
 try:
@@ -42,6 +42,22 @@ def fake_image(filename: str, width: int = 640, height: int = 400, seed: int = 0
     return ContentFile(_jpg_bytes(width, height, (r, g, b)), name=filename)
 
 
+def fake_pdf(filename: str, size_kb: int = 780) -> ContentFile:
+    """Минимальный PDF для демо (размер ~size_kb для отображения pdf_size_mb)."""
+    header = (
+        b'%PDF-1.4\n'
+        b'1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n'
+        b'2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n'
+        b'3 0 obj<</Type/Page/MediaBox[0 0 400 560]/Parent 2 0 R>>endobj\n'
+        b'xref\n0 4\n'
+        b'trailer<</Size 4/Root 1 0 R>>\n'
+        b'startxref\n9\n%%EOF\n'
+    )
+    target = max(len(header), size_kb * 1024)
+    body = header + b'% demo padding\n' + (b'0' * (target - len(header) - 16))
+    return ContentFile(body, name=filename)
+
+
 class Command(BaseCommand):
     help = 'Создаёт демонстрационные записи для всех моделей API (баннеры, контакты, каталог, заказы и т.д.).'
 
@@ -61,6 +77,7 @@ class Command(BaseCommand):
             self._seed_contact()
             self._seed_manufacturers_and_products()
             self._seed_banners()
+            self._seed_certifications()
             self._seed_news()
             self._seed_feedback()
             self._seed_orders()
@@ -76,6 +93,7 @@ class Command(BaseCommand):
         NewsImage.objects.all().delete()
         News.objects.all().delete()
         Banner.objects.all().delete()
+        Certification.objects.all().delete()
         FeedbackMessage.objects.all().delete()
         ContactPhone.objects.all().delete()
         Contact.objects.all().delete()
@@ -231,20 +249,45 @@ class Command(BaseCommand):
         slides = [
             (
                 'ШИНЫ ДЛЯ РАБОТЫ БЕЗ ПРОСТОЕВ',
+                'НАДЕЖНОСТЬ',
                 'Поставляем шины для спецтехники с оптимальным ресурсом, сцеплением и устойчивостью к износу',
             ),
             (
                 'ЗАПЧАСТИ В НАЛИЧИИ И ПОД ЗАКАЗ',
+                'КАЧЕСТВО',
                 'Быстрая логистика по России. Проверенные поставщики и гарантия подлинности.',
             ),
             (
                 'ПАРТНЁРЫ МИРОВЫХ БРЕНДОВ',
+                'ПАРТНЁРСТВО',
                 'Caterpillar, Cummins, Deutz, Komatsu и другие производители — одно окно для вашей техники.',
             ),
         ]
-        for i, (title, desc) in enumerate(slides):
-            b = Banner(title=title, description=desc, ordering=i, is_active=True)
+        for i, (title, slide_type, desc) in enumerate(slides):
+            b = Banner(title=title, type=slide_type, description=desc, ordering=i, is_active=True)
             b.image.save(f'banner_{i}.jpg', fake_image(f'banner_{i}.jpg', 1600, 640, 300 + i), save=True)
+
+    def _seed_certifications(self) -> None:
+        if Certification.objects.exists():
+            return
+        today = timezone.localdate()
+        samples = [
+            ('Сертификат доверия', 780),
+            ('Сертификат соответствия', 512),
+            ('Сертификат официального дилера', 640),
+            ('Сертификат качества поставок', 420),
+            ('Сертификат партнёрства Cummins', 890),
+        ]
+        for i, (base_name, pdf_kb) in enumerate(samples):
+            issued = today - timedelta(days=14 + i * 45)
+            name = f'{base_name} от {issued.strftime("%d.%m.%Y")}'
+            cert = Certification(name=name)
+            cert.thumbnail_image.save(
+                f'cert_thumb_{i}.jpg',
+                fake_image(f'cert_{i}.jpg', 400, 560, 700 + i),
+                save=False,
+            )
+            cert.pdf.save(f'cert_{i}.pdf', fake_pdf(f'cert_{i}.pdf', pdf_kb), save=True)
 
     def _seed_news(self) -> None:
         if News.objects.exists():

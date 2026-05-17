@@ -6,10 +6,11 @@ from rest_framework.views import APIView
 
 from config.async_pagination import paginate
 
-from content.models import AboutCompany, Banner, News
+from content.models import AboutCompany, Banner, Certification, News
 from content.serializers import (
     AboutCompanySerializer,
     BannerSerializer,
+    CertificationSerializer,
     NewsDetailSerializer,
     NewsListSerializer,
 )
@@ -21,13 +22,39 @@ class BannerListView(APIView):
     @extend_schema(
         tags=['Главная — баннеры'],
         summary='Активные баннеры',
+        description='Слайдер главной страницы. Фильтр по полю `type` (без учёта регистра). Только чтение.',
+        parameters=[
+            OpenApiParameter(
+                name='type',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description='Тип / акцент слайда (например: НАДЕЖНОСТЬ, КАЧЕСТВО)',
+            ),
+        ],
         responses={200: BannerSerializer(many=True)},
-        description='Слайдер главной страницы. Только чтение.',
     )
     def get(self, request):
         qs = Banner.objects.filter(is_active=True).order_by('ordering', 'id')
+        if banner_type := request.query_params.get('type', '').strip():
+            qs = qs.filter(type__iexact=banner_type)
         banners = list(qs)
         ser = BannerSerializer(banners, many=True, context={'request': request})
+        return Response(ser.data)
+
+
+class CertificationListView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=['Сертификаты'],
+        summary='Список сертификатов',
+        description='Блок «Наши сертификаты»: название, превью, ссылка на PDF и размер файла. Только GET.',
+        responses={200: CertificationSerializer(many=True)},
+    )
+    def get(self, request):
+        qs = Certification.objects.order_by('-created_at', '-id')
+        rows = list(qs)
+        ser = CertificationSerializer(rows, many=True, context={'request': request})
         return Response(ser.data)
 
 
