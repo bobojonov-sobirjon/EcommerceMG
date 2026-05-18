@@ -11,6 +11,14 @@ def _preview_img(url: str, css_class: str = 'admin-image-preview') -> str:
     )
 
 
+def _preview_logo(url: str, css_class: str = 'admin-image-preview') -> str:
+    return format_html(
+        '<img src="{}" class="{}" alt="" style="max-height:120px;object-fit:contain;" />',
+        url,
+        css_class,
+    )
+
+
 class ProductImageInline(admin.TabularInline):
     model = ProductImage
     extra = 0
@@ -44,13 +52,13 @@ class ManufacturerAdmin(admin.ModelAdmin):
     @admin.display(description='Логотип')
     def logo_thumb(self, obj: Manufacturer):
         if obj.logo and obj.logo.name:
-            return _preview_img(obj.logo.url, 'admin-image-preview--list')
+            return _preview_logo(obj.logo.url, 'admin-image-preview--list')
         return '—'
 
     @admin.display(description='Текущий логотип')
     def logo_preview(self, obj: Manufacturer):
         if obj.pk and obj.logo and obj.logo.name:
-            return _preview_img(obj.logo.url)
+            return _preview_logo(obj.logo.url)
         return '—'
 
     @admin.display(description='Текущая обложка')

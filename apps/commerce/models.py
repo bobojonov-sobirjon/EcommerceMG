@@ -1,8 +1,9 @@
 from decimal import Decimal
-from pyexpat import model
 
 from django.core.validators import MinValueValidator
 from django.db import models
+
+from commerce.validators import validate_manufacturer_logo
 
 
 
@@ -12,9 +13,11 @@ class Manufacturer(models.Model):
 
     name = models.CharField('Название', max_length=255)
     description = models.TextField('Описание', blank=True)
-    logo = models.ImageField(
+    logo = models.FileField(
         'Логотип (карточка)',
         upload_to='manufacturers/logos/%Y/%m/',
+        validators=[validate_manufacturer_logo],
+        help_text='JPG, PNG, WebP, GIF или SVG.',
     )
     hero_image = models.ImageField(
         'Обложка (страница производителя)',
