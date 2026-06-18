@@ -1,4 +1,4 @@
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from rest_framework import status
 import logging
 import traceback
@@ -15,9 +15,16 @@ class JsonErrorResponseMiddleware:
         return response
 
     def process_exception(self, request, exception):
+        if isinstance(exception, Http404):
+            return None
+
         # Skip middleware for schema/docs endpoints
         if request.path in ['/schema/', '/docs/', '/redoc/']:
             return None  # Let Django handle it normally
+
+        # Skip middleware for admin and media static files
+        if request.path.startswith('/admin/') or request.path.startswith('/media/'):
+            return None
 
         # Log full traceback to console/logs for debugging
         self.logger.exception("Unhandled exception for path %s", request.path, exc_info=exception)
@@ -38,14 +45,19 @@ class Custom404Middleware:
         response = self.get_response(request)
         
         # Only handle 404 for non-API requests
-        if not request.path.startswith('/api/'):
-            if response is None:
-                # If response is None, handle 404 error
-                return self.handle_404(request)
+        if request.path.startswith('/api/'):
+            return response
 
-            if response.status_code == status.HTTP_404_NOT_FOUND:
-                # If response status is 404, handle 404 error
-                return self.handle_404(request)
+        if request.path.startswith('/admin/') or request.path.startswith('/media/'):
+            return response
+
+        if response is None:
+            # If response is None, handle 404 error
+            return self.handle_404(request)
+
+        if response.status_code == status.HTTP_404_NOT_FOUND:
+            # If response status is 404, handle 404 error
+            return self.handle_404(request)
 
         return response
 

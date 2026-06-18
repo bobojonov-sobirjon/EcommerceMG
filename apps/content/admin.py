@@ -1,20 +1,26 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from content.models import AboutCompany, Banner, Certification, News, NewsImage
+from config.admin_seo import PageSeoTabularInline, SeoTabularInline
+from content.models import (
+    AboutCompany,
+    AboutCompanySeo,
+    Banner,
+    Certification,
+    News,
+    NewsImage,
+    NewsSeo,
+)
 
 
 def _preview_img(url: str, css_class: str = 'admin-image-preview') -> str:
-    return format_html(
-        '<img src="{}" class="{}" alt="" />',
-        url,
-        css_class,
-    )
+    return format_html('<img src="{}" class="{}" alt="" />', url, css_class)
 
 
 class NewsImageInline(admin.TabularInline):
     model = NewsImage
     extra = 0
+    classes = ('images-inline',)
     readonly_fields = ('image_preview',)
     fields = ('image_preview', 'image', 'ordering')
 
@@ -23,6 +29,14 @@ class NewsImageInline(admin.TabularInline):
         if obj.pk and obj.image and obj.image.name:
             return _preview_img(obj.image.url)
         return '—'
+
+
+class NewsSeoInline(SeoTabularInline):
+    model = NewsSeo
+
+
+class AboutCompanySeoInline(PageSeoTabularInline):
+    model = AboutCompanySeo
 
 
 @admin.register(Banner)
@@ -76,22 +90,50 @@ class CertificationAdmin(admin.ModelAdmin):
 
 @admin.register(AboutCompany)
 class AboutCompanyAdmin(admin.ModelAdmin):
+    inlines = (AboutCompanySeoInline,)
+    fieldsets = (
+        (None, {'fields': ('description',)}),
+        (
+            'Метрики',
+            {
+                'fields': (
+                    'years_stable',
+                    'satisfied_clients',
+                    'parts_in_stock',
+                    'world_brands',
+                ),
+            },
+        ),
+    )
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('seo_record')
+
     def has_add_permission(self, request):  # type: ignore[override]
         return not AboutCompany.objects.exists()
 
 
 @admin.register(News)
 class NewsAdmin(admin.ModelAdmin):
-    list_display = ('title', 'news_thumb', 'news_type', 'published_at', 'ordering')
+    list_display = ('title', 'display_slug', 'news_thumb', 'news_type', 'published_at', 'ordering')
+    list_display_links = ('title',)
     list_filter = ('news_type',)
-    search_fields = ('title',)
+    search_fields = ('title', 'seo_record__slug', 'seo_record__seo_title')
     ordering = ('-published_at',)
     date_hierarchy = 'published_at'
-    inlines = (NewsImageInline,)
+    inlines = (NewsImageInline, NewsSeoInline)
+    fieldsets = (
+        (None, {'fields': ('title', 'news_type', 'description', 'published_at', 'ordering')}),
+    )
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.prefetch_related('images')
+        return qs.select_related('seo_record').prefetch_related('images')
+
+    @admin.display(description='Slug')
+    def display_slug(self, obj: News):
+        record = getattr(obj, 'seo_record', None)
+        return record.slug if record else '—'
 
     @admin.display(description='Фото')
     def news_thumb(self, obj: News):

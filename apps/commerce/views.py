@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.db.models import Q
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
@@ -23,8 +24,13 @@ def product_filter(qs, request):
     params = request.query_params
     if ptype := params.get('type'):
         qs = qs.filter(product_type=ptype)
-    if name := params.get('name'):
-        qs = qs.filter(name__icontains=name.strip())
+    search = (params.get('search') or params.get('name') or '').strip()
+    if search:
+        qs = qs.filter(
+            Q(name__icontains=search)
+            | Q(artikul__icontains=search)
+            | Q(description__icontains=search),
+        )
     if mn := params.get('manufacturer'):
         try:
             qs = qs.filter(manufacturer_id=int(mn))
@@ -63,7 +69,7 @@ class ManufacturerListView(APIView):
         responses={200: ManufacturerListSerializer(many=True)},
     )
     def get(self, request):
-        qs = Manufacturer.objects.order_by('ordering', 'id')
+        qs = Manufacturer.objects.select_related('seo_record').order_by('ordering', 'id')
         rows = list(qs)
         data = ManufacturerListSerializer(rows, many=True, context={'request': request}).data
         return Response(data)
@@ -74,12 +80,27 @@ class ManufacturerDetailView(APIView):
 
     @extend_schema(
         tags=['Производители'],
-        summary='Детально по производителю',
+        summary='Детально по производителю (id)',
         description='Подробное описание бренда (страница партнёра).',
         responses={200: ManufacturerDetailSerializer},
     )
     def get(self, request, pk):
-        obj = Manufacturer.objects.get(pk=pk)
+        obj = Manufacturer.objects.select_related('seo_record').get(pk=pk)
+        data = ManufacturerDetailSerializer(obj, context={'request': request}).data
+        return Response(data)
+
+
+class ManufacturerDetailBySlugView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=['Производители'],
+        summary='Детально по производителю (slug)',
+        description='То же, что по id, но поиск по полю `slug`.',
+        responses={200: ManufacturerDetailSerializer},
+    )
+    def get(self, request, slug):
+        obj = Manufacturer.objects.select_related('seo_record').get(seo_record__slug=slug)
         data = ManufacturerDetailSerializer(obj, context={'request': request}).data
         return Response(data)
 
@@ -103,7 +124,13 @@ class ProductListView(APIView):
                 name='name',
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.QUERY,
-                description='Поиск по названию (icontains)',
+                description='Поиск по названию, артикулу и описанию (icontains)',
+            ),
+            OpenApiParameter(
+                name='search',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description='То же, что `name`: поиск по названию, артикулу и описанию',
             ),
             OpenApiParameter(
                 name='manufacturer',
@@ -150,7 +177,7 @@ class ProductListView(APIView):
     def get(self, request):
         page = int(request.query_params.get('page', 1) or 1)
         page_size = int(request.query_params.get('page_size', 20) or 20)
-        qs = Product.objects.select_related('manufacturer').prefetch_related('images').all()
+        qs = Product.objects.select_related('manufacturer', 'seo_record').prefetch_related('images').all()
         qs = product_filter(qs, request)
         qs = product_price_order(qs, request)
         page_ctx = paginate(qs, page=page, page_size=page_size, max_page_size=100)
@@ -175,11 +202,28 @@ class ProductDetailView(APIView):
     @extend_schema(
         tags=['Каталог — товары'],
         summary='Товар по id',
-        description='Галерея через вложенные `images`.',
+        description='Галерея через вложенные `images`. SEO-поля в ответе.',
         responses={200: ProductDetailSerializer},
     )
     def get(self, request, pk):
-        obj = Product.objects.select_related('manufacturer').prefetch_related('images').get(pk=pk)
+        obj = Product.objects.select_related('manufacturer', 'seo_record').prefetch_related('images').get(pk=pk)
+        data = ProductDetailSerializer(obj, context={'request': request}).data
+        return Response(data)
+
+
+class ProductDetailBySlugView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=['Каталог — товары'],
+        summary='Товар по slug',
+        description='То же, что по id, но поиск по полю `slug`.',
+        responses={200: ProductDetailSerializer},
+    )
+    def get(self, request, slug):
+        obj = Product.objects.select_related('manufacturer', 'seo_record').prefetch_related('images').get(
+            seo_record__slug=slug,
+        )
         data = ProductDetailSerializer(obj, context={'request': request}).data
         return Response(data)
 
@@ -189,20 +233,39 @@ class ProductSimilarView(APIView):
 
     @extend_schema(
         tags=['Каталог — товары'],
-        summary='Похожие товары',
+        summary='Похожие товары (id)',
         description='Те же производитель и тип товара, исключая текущий элемент.',
         responses={200: ProductListSerializer(many=True)},
     )
     def get(self, request, pk):
-        anchor = Product.objects.select_related('manufacturer').prefetch_related('images').get(pk=pk)
-        qs = Product.objects.exclude(pk=anchor.pk).filter(
-            manufacturer_id=anchor.manufacturer_id,
-            product_type=anchor.product_type,
+        anchor = Product.objects.select_related('manufacturer', 'seo_record').prefetch_related('images').get(pk=pk)
+        return Response(_similar_products(anchor, request))
+
+
+class ProductSimilarBySlugView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=['Каталог — товары'],
+        summary='Похожие товары (slug)',
+        description='То же, что по id, но якорный товар ищется по `slug`.',
+        responses={200: ProductListSerializer(many=True)},
+    )
+    def get(self, request, slug):
+        anchor = Product.objects.select_related('manufacturer', 'seo_record').prefetch_related('images').get(
+            seo_record__slug=slug,
         )
-        qs = qs.select_related('manufacturer').prefetch_related('images').order_by('-is_stock', '-id')[:24]
-        out = list(qs)
-        data = ProductListSerializer(out, many=True, context={'request': request}).data
-        return Response(data)
+        return Response(_similar_products(anchor, request))
+
+
+def _similar_products(anchor: Product, request):
+    qs = Product.objects.exclude(pk=anchor.pk).filter(
+        manufacturer_id=anchor.manufacturer_id,
+        product_type=anchor.product_type,
+    )
+    qs = qs.select_related('manufacturer', 'seo_record').prefetch_related('images').order_by('-is_stock', '-id')[:24]
+    out = list(qs)
+    return ProductListSerializer(out, many=True, context={'request': request}).data
 
 
 def _persist_order(data):

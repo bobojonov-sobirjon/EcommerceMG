@@ -4,7 +4,7 @@ from django.core.validators import MinValueValidator
 from django.db import models
 
 from commerce.validators import validate_manufacturer_logo
-
+from config.seo import SeoRecord
 
 
 
@@ -35,6 +35,25 @@ class Manufacturer(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class ManufacturerSeo(SeoRecord):
+    manufacturer = models.OneToOneField(
+        Manufacturer,
+        on_delete=models.CASCADE,
+        related_name='seo_record',
+        verbose_name='Производитель',
+    )
+
+    class Meta:
+        verbose_name = 'SEO производителя'
+        verbose_name_plural = 'SEO'
+
+    def slug_source(self) -> str:
+        return self.manufacturer.name
+
+    def __str__(self) -> str:
+        return f'SEO — {self.manufacturer.name}'
 
 
 class ProductType(models.TextChoices):
@@ -80,6 +99,25 @@ class Product(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class ProductSeo(SeoRecord):
+    product = models.OneToOneField(
+        Product,
+        on_delete=models.CASCADE,
+        related_name='seo_record',
+        verbose_name='Товар',
+    )
+
+    class Meta:
+        verbose_name = 'SEO товара'
+        verbose_name_plural = 'SEO'
+
+    def slug_source(self) -> str:
+        return f'{self.product.name}-{self.product.artikul}'
+
+    def __str__(self) -> str:
+        return f'SEO — {self.product.name}'
 
 
 class ProductImage(models.Model):

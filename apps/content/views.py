@@ -68,7 +68,7 @@ class AboutCompanyView(APIView):
         responses={200: AboutCompanySerializer},
     )
     def get(self, request):
-        obj, _created = AboutCompany.objects.get_or_create(pk=1)
+        obj, _created = AboutCompany.objects.select_related('seo_record').get_or_create(pk=1)
         data = AboutCompanySerializer(obj).data
         return Response(data)
 
@@ -117,7 +117,7 @@ class NewsListView(APIView):
     def get(self, request):
         page = int(request.query_params.get('page', 1) or 1)
         page_size = int(request.query_params.get('page_size', 12) or 12)
-        qs = News.objects.prefetch_related('images').order_by('-published_at', '-id')
+        qs = News.objects.select_related('seo_record').prefetch_related('images').order_by('-published_at', '-id')
         nt = request.query_params.get('type') or request.query_params.get('news_type')
         if nt:
             qs = qs.filter(news_type=nt)
@@ -139,11 +139,26 @@ class NewsDetailView(APIView):
 
     @extend_schema(
         tags=['Новости'],
-        summary='Детальная страница новости',
-        description='Подробный текст и галерея `images`.',
+        summary='Детальная страница новости (id)',
+        description='Подробный текст, галерея `images` и SEO-поля.',
         responses={200: NewsDetailSerializer},
     )
     def get(self, request, pk):
-        obj = News.objects.prefetch_related('images').get(pk=pk)
+        obj = News.objects.select_related('seo_record').prefetch_related('images').get(pk=pk)
+        ser = NewsDetailSerializer(obj, context={'request': request})
+        return Response(ser.data)
+
+
+class NewsDetailBySlugView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=['Новости'],
+        summary='Детальная страница новости (slug)',
+        description='То же, что по id, но поиск по полю `slug`.',
+        responses={200: NewsDetailSerializer},
+    )
+    def get(self, request, slug):
+        obj = News.objects.select_related('seo_record').prefetch_related('images').get(seo_record__slug=slug)
         ser = NewsDetailSerializer(obj, context={'request': request})
         return Response(ser.data)

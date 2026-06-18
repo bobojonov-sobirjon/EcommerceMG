@@ -42,6 +42,30 @@ def fake_image(filename: str, width: int = 640, height: int = 400, seed: int = 0
     return ContentFile(_jpg_bytes(width, height, (r, g, b)), name=filename)
 
 
+def _file_missing(file_field) -> bool:
+    if not file_field or not file_field.name:
+        return True
+    try:
+        return not file_field.storage.exists(file_field.name)
+    except (OSError, ValueError):
+        return True
+
+
+def _ensure_product_images(product: Product, pid: int, count: int = 2) -> None:
+    images = list(product.images.order_by('ordering', 'pk'))
+    if images and not any(_file_missing(img.image) for img in images):
+        return
+    for img in images:
+        img.delete()
+    for o in range(count):
+        img = ProductImage(product=product, ordering=o)
+        img.image.save(
+            f'prod_{product.pk}_{o}.jpg',
+            fake_image(f'p{product.pk}_{o}.jpg', 500, 500, pid + o),
+            save=True,
+        )
+
+
 def fake_pdf(filename: str, size_kb: int = 780) -> ContentFile:
     """Минимальный PDF для демо (размер ~size_kb для отображения pdf_size_mb)."""
     header = (
@@ -222,6 +246,8 @@ class Command(BaseCommand):
                 for o in range(2):
                     img = ProductImage(product=p, ordering=o)
                     img.image.save(f'prod_{p.pk}_{o}.jpg', fake_image(f'p{p.pk}_{o}.jpg', 500, 500, pid + o), save=True)
+            else:
+                _ensure_product_images(p, pid)
 
         for i, (title, art, price) in enumerate(tire_samples):
             pid += 1
@@ -242,6 +268,8 @@ class Command(BaseCommand):
                 for o in range(2):
                     img = ProductImage(product=p, ordering=o)
                     img.image.save(f'prod_{p.pk}_{o}.jpg', fake_image(f'pt{p.pk}_{o}.jpg', 500, 500, pid + o), save=True)
+            else:
+                _ensure_product_images(p, pid)
 
     def _seed_banners(self) -> None:
         if Banner.objects.exists():

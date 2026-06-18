@@ -1,5 +1,7 @@
 from django.db import models
 
+from config.seo import PageSeoRecord, SeoRecord
+
 
 class Banner(models.Model):
     """Баннер слайдера на главной."""
@@ -51,6 +53,22 @@ class AboutCompany(models.Model):
         pass
 
 
+class AboutCompanySeo(PageSeoRecord):
+    about = models.OneToOneField(
+        AboutCompany,
+        on_delete=models.CASCADE,
+        related_name='seo_record',
+        verbose_name='О компании',
+    )
+
+    class Meta:
+        verbose_name = 'SEO страницы'
+        verbose_name_plural = 'SEO'
+
+    def __str__(self) -> str:
+        return 'SEO — О компании'
+
+
 class NewsType(models.TextChoices):
     USEFUL = 'useful', 'Полезное'
     COMPANY = 'company', 'Новости компании'
@@ -76,6 +94,25 @@ class News(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+class NewsSeo(SeoRecord):
+    news = models.OneToOneField(
+        News,
+        on_delete=models.CASCADE,
+        related_name='seo_record',
+        verbose_name='Новость',
+    )
+
+    class Meta:
+        verbose_name = 'SEO новости'
+        verbose_name_plural = 'SEO'
+
+    def slug_source(self) -> str:
+        return self.news.title
+
+    def __str__(self) -> str:
+        return f'SEO — {self.news.title}'
 
 
 class NewsImage(models.Model):

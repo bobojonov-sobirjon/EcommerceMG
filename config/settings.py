@@ -87,6 +87,7 @@ JAZZMIN_SETTINGS = {
     "default_icon_parents": "fas fa-folder",
     "default_icon_children": "fas fa-circle",
     "custom_css": "admin/css/custom_admin.css",
+    "changeform_format": "single",
 }
 
 LOCAL_MIDDLEWARE = [
@@ -189,8 +190,8 @@ STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
-MEDIA_URL = "/media/"
-MEDIA_ROOT = os.getenv('MEDIA_ROOT', str(BASE_DIR / '/var/www/media'))
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.getenv('MEDIA_ROOT', str(BASE_DIR / 'media'))
 
 
 LOCALE_PATHS = [
@@ -324,7 +325,7 @@ SPECTACULAR_SETTINGS = {
             'name': 'Каталог — товары',
             'description': (
                 'Каталог запчастей и шин: фильтрация по типу, производителю, цене, '
-                'сортировка по цене (order_price=asc|desc), поиск по названию.'
+                'поиск по названию, артикулу и описанию, сортировка по цене (order_price=asc|desc).'
             ),
         },
          {'name': 'Заказы', 'description': 'Приём заказов с корзины (гостевая отправка через POST).'},

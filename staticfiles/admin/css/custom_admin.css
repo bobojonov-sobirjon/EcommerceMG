@@ -1,6 +1,5 @@
 /*
  * Asosiy forma: keng maydonlar.
- * Inline jadval (.inline-group) uchun width: 100% URL/text ustunlarni buzadi — pastda alohida reset.
  */
 .change-form input[type="text"],
 .change-form input[type="email"],
@@ -35,7 +34,7 @@
     box-sizing: border-box;
 }
 
-/* ----- Tabular inline (masalan, «Телефоны»): ustunlar ustma-ustma tushmasin ----- */
+/* Tabular inline: ustunlar */
 .change-form .inline-group table input[type="text"],
 .change-form .inline-group table input[type="url"],
 .change-form .inline-group table input[type="email"],
@@ -70,6 +69,22 @@
 .change-form .inline-related .select2-container {
     width: auto !important;
     max-width: min(100%, 22rem) !important;
+}
+
+/* SEO inline: kengroq textarea */
+.change-form .inline-group.seo-inline table textarea {
+    max-width: min(100%, 36rem) !important;
+    min-width: 16rem !important;
+    min-height: 5rem !important;
+}
+
+.change-form .inline-group.seo-inline table tr.empty-form {
+    display: none !important;
+}
+
+/* Rasmlar inline: bo'sh qator ko'rinsin */
+.change-form .inline-group.images-inline table tr.empty-form {
+    display: table-row !important;
 }
 
 .admin-image-preview {
