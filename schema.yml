@@ -51,6 +51,26 @@ paths:
                 items:
                   $ref: '#/components/schemas/Banner'
           description: ''
+  /api/v1/catalog/categories/:
+    get:
+      operationId: api_v1_catalog_categories_list
+      description: Три раздела каталога. Для запчастей и шин — сразу список товаров
+        (`hub=products`). Для двигателей — сначала производители (`hub=manufacturers`),
+        затем страница производителя с баннером.
+      summary: Категории каталога
+      tags:
+      - Каталог
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CatalogCategory'
+          description: ''
   /api/v1/certificates/:
     get:
       operationId: api_v1_certificates_list
@@ -85,6 +105,99 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SiteContact'
+          description: ''
+  /api/v1/engines/manufacturers/:
+    get:
+      operationId: api_v1_engines_manufacturers_list
+      description: Список производителей, у которых есть товары категории «Двигатели».
+      summary: Производители двигателей
+      tags:
+      - Каталог — двигатели
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ManufacturerList'
+          description: ''
+  /api/v1/engines/manufacturers/{id}/:
+    get:
+      operationId: api_v1_engines_manufacturers_retrieve
+      description: То же, что по slug.
+      summary: Страница двигателей производителя (id)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          default: 20
+      tags:
+      - Каталог — двигатели
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EngineManufacturerPage'
+          description: ''
+  /api/v1/engines/manufacturers/slug/{slug}/:
+    get:
+      operationId: api_v1_engines_manufacturers_slug_retrieve
+      description: Сверху баннер и контент производителя, снизу — двигатели этого
+        производителя с пагинацией.
+      summary: Страница двигателей производителя (slug)
+      parameters:
+      - in: query
+        name: order_price
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+        description: 'Сортировка по цене: asc или desc'
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Номер страницы товаров
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          default: 20
+        description: Размер страницы товаров (не больше 100)
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - Каталог — двигатели
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EngineManufacturerPage'
           description: ''
   /api/v1/manufacturers/:
     get:
@@ -357,6 +470,7 @@ paths:
         schema:
           type: string
           enum:
+          - engines
           - spare_parts
           - tires
         description: Тип товара
@@ -665,6 +779,20 @@ components:
       - id
       - image
       - title
+    CatalogCategory:
+      type: object
+      properties:
+        type:
+          type: string
+        label:
+          type: string
+        hub:
+          type: string
+          description: products — сразу список товаров; manufacturers — сначала производители
+      required:
+      - hub
+      - label
+      - type
     Certification:
       type: object
       properties:
@@ -731,6 +859,86 @@ components:
       required:
       - id
       - phone
+    EngineManufacturerBanner:
+      type: object
+      description: Баннер и контент страницы двигателей производителя.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Название
+          maxLength: 255
+        slug:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          title: Описание
+        seo_title:
+          type: string
+          readOnly: true
+        seo_description:
+          type: string
+          readOnly: true
+        logo:
+          type: string
+          nullable: true
+          readOnly: true
+        hero_image:
+          type: string
+          nullable: true
+          readOnly: true
+        features_heading:
+          type: string
+          title: Заголовок блока преимуществ
+          description: 'Например: «Особенности двигателей Caterpillar». Только для
+            страницы двигателей.'
+          maxLength: 255
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManufacturerFeature'
+          readOnly: true
+        ordering:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          title: Порядок
+      required:
+      - features
+      - hero_image
+      - id
+      - logo
+      - name
+      - seo_description
+      - seo_title
+      - slug
+    EngineManufacturerPage:
+      type: object
+      properties:
+        manufacturer:
+          $ref: '#/components/schemas/EngineManufacturerBanner'
+        products:
+          type: object
+          properties:
+            count:
+              type: integer
+            page:
+              type: integer
+            page_size:
+              type: integer
+            total_pages:
+              type: integer
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProductList'
+          readOnly: true
+      required:
+      - manufacturer
+      - products
     FeedbackMessageRequest:
       type: object
       properties:
@@ -785,7 +993,14 @@ components:
           type: string
           format: uri
           nullable: true
-          title: Обложка (страница производителя)
+          title: Баннер (страница двигателей)
+          description: Верхний баннер на странице двигателей этого производителя.
+        features_heading:
+          type: string
+          title: Заголовок блока преимуществ
+          description: 'Например: «Особенности двигателей Caterpillar». Только для
+            страницы двигателей.'
+          maxLength: 255
         ordering:
           type: integer
           maximum: 32767
@@ -798,6 +1013,32 @@ components:
       - seo_description
       - seo_title
       - slug
+    ManufacturerFeature:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          title: Заголовок
+          maxLength: 255
+        description:
+          type: string
+          title: Описание
+        icon:
+          type: string
+          nullable: true
+          readOnly: true
+        ordering:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          title: Порядок
+      required:
+      - icon
+      - id
+      - title
     ManufacturerList:
       type: object
       properties:
@@ -1025,11 +1266,13 @@ components:
           enum:
           - spare_parts
           - tires
+          - engines
           type: string
           description: |-
             * `spare_parts` - Запчасти
             * `tires` - Шины для спецтехники
-          x-spec-enum-id: 00f8a2fc21464679
+            * `engines` - Двигатели
+          x-spec-enum-id: 772e385966d88174
           title: Тип товара
         product_type_label:
           type: string
@@ -1111,11 +1354,13 @@ components:
           enum:
           - spare_parts
           - tires
+          - engines
           type: string
           description: |-
             * `spare_parts` - Запчасти
             * `tires` - Шины для спецтехники
-          x-spec-enum-id: 00f8a2fc21464679
+            * `engines` - Двигатели
+          x-spec-enum-id: 772e385966d88174
           title: Тип товара
         product_type_label:
           type: string

@@ -6,12 +6,23 @@ from rest_framework import serializers
 
 from commerce.models import (
     Manufacturer,
+    ManufacturerFeature,
     Order,
     OrderProduct,
     Product,
     ProductImage,
 )
 from config.serializer_seo import SeoRecordSerializer, SlugFromSeoRecordSerializer
+
+
+def _absolute_media_url(serializer, file_field) -> str | None:
+    if not file_field or not file_field.name:
+        return None
+    request = serializer.context.get('request')
+    url = file_field.url
+    if request:
+        return request.build_absolute_uri(url)
+    return url
 
 
 class ManufacturerListSerializer(SlugFromSeoRecordSerializer, serializers.ModelSerializer):
@@ -32,8 +43,79 @@ class ManufacturerDetailSerializer(SeoRecordSerializer, serializers.ModelSeriali
             'seo_description',
             'logo',
             'hero_image',
+            'features_heading',
             'ordering',
         )
+
+
+class ManufacturerFeatureSerializer(serializers.ModelSerializer):
+    icon = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ManufacturerFeature
+        fields = ('id', 'title', 'description', 'icon', 'ordering')
+
+    @extend_schema_field(serializers.CharField(allow_null=True, required=False))
+    def get_icon(self, obj: ManufacturerFeature):
+        return _absolute_media_url(self, obj.icon)
+
+
+class EngineManufacturerBannerSerializer(SeoRecordSerializer, serializers.ModelSerializer):
+    """Баннер и контент страницы двигателей производителя."""
+
+    hero_image = serializers.SerializerMethodField()
+    logo = serializers.SerializerMethodField()
+    features = ManufacturerFeatureSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Manufacturer
+        fields = (
+            'id',
+            'name',
+            'slug',
+            'description',
+            'seo_title',
+            'seo_description',
+            'logo',
+            'hero_image',
+            'features_heading',
+            'features',
+            'ordering',
+        )
+
+    @extend_schema_field(serializers.CharField(allow_null=True, required=False))
+    def get_hero_image(self, obj: Manufacturer):
+        return _absolute_media_url(self, obj.hero_image)
+
+    @extend_schema_field(serializers.CharField(allow_null=True, required=False))
+    def get_logo(self, obj: Manufacturer):
+        return _absolute_media_url(self, obj.logo)
+
+
+class EngineManufacturerPageSerializer(serializers.Serializer):
+    manufacturer = EngineManufacturerBannerSerializer()
+    products = serializers.SerializerMethodField()
+
+    @extend_schema_field(
+        {
+            'type': 'object',
+            'properties': {
+                'count': {'type': 'integer'},
+                'page': {'type': 'integer'},
+                'page_size': {'type': 'integer'},
+                'total_pages': {'type': 'integer'},
+                'results': {'type': 'array', 'items': {'$ref': '#/components/schemas/ProductList'}},
+            },
+        },
+    )
+    def get_products(self, obj):
+        return obj['products']
+
+
+class CatalogCategorySerializer(serializers.Serializer):
+    type = serializers.CharField()
+    label = serializers.CharField()
+    hub = serializers.CharField(help_text='products — сразу список товаров; manufacturers — сначала производители')
 
 
 class ProductManufacturerMiniSerializer(serializers.ModelSerializer):

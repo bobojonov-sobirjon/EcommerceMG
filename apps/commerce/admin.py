@@ -4,6 +4,7 @@ from django.utils.html import format_html
 
 from commerce.models import (
     Manufacturer,
+    ManufacturerFeature,
     ManufacturerSeo,
     Order,
     OrderProduct,
@@ -57,6 +58,13 @@ class ManufacturerSeoInline(SeoTabularInline):
     model = ManufacturerSeo
 
 
+class ManufacturerFeatureInline(admin.TabularInline):
+    model = ManufacturerFeature
+    extra = 0
+    fields = ('title', 'description', 'icon', 'ordering')
+    ordering = ('ordering', 'id')
+
+
 class OrderProductInline(admin.TabularInline):
     model = OrderProduct
     raw_id_fields = ('product',)
@@ -69,11 +77,17 @@ class ManufacturerAdmin(admin.ModelAdmin):
     list_display_links = ('name',)
     search_fields = ('name', 'seo_record__slug', 'seo_record__seo_title')
     readonly_fields = ('logo_preview', 'hero_preview')
-    inlines = (ManufacturerSeoInline,)
+    inlines = (ManufacturerFeatureInline, ManufacturerSeoInline,)
     fieldsets = (
         (None, {'fields': ('name', 'description', 'ordering')}),
+        (
+            'Страница двигателей',
+            {
+                'fields': ('hero_preview', 'hero_image', 'features_heading'),
+                'description': 'Баннер и блок преимуществ — только для категории «Двигатели».',
+            },
+        ),
         ('Логотип', {'fields': ('logo_preview', 'logo')}),
-        ('Обложка', {'fields': ('hero_preview', 'hero_image')}),
     )
 
     def get_queryset(self, request):

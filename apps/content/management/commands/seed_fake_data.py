@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from commerce.models import (
     Manufacturer,
+    ManufacturerFeature,
     Order,
     OrderProduct,
     Product,
@@ -208,6 +209,56 @@ class Command(BaseCommand):
             m.save()
             manufacturers.append(m)
 
+        engine_brand_meta = {
+            'Cummins': {
+                'features_heading': '',
+                'features': [],
+            },
+            'Caterpillar': {
+                'features_heading': 'Особенности двигателей Caterpillar',
+                'features': [
+                    ('НАДЁЖНОСТЬ', 'Двигатели CAT рассчитаны на экстремальные нагрузки и длительную эксплуатацию.'),
+                    ('ЭФФЕКТИВНОСТЬ', 'Оптимальный расход топлива и высокая мощность при стабильной работе.'),
+                    ('ТЕХНИЧЕСКОЕ ОБСЛУЖИВАНИЕ', 'Развитая сервисная сеть и доступность оригинальных комплектующих.'),
+                ],
+            },
+            'Deutz': {
+                'features_heading': 'Преимущества двигателей Deutz',
+                'features': [
+                    ('НАДЁЖНОСТЬ И ДОЛГОВЕЧНОСТЬ', 'Проверенные конструкции для непрерывной работы в тяжёлых условиях.'),
+                    ('ИННОВАЦИОННЫЕ ТЕХНОЛОГИИ', 'Современные системы впрыска и управления двигателем.'),
+                    ('ЭФФЕКТИВНОСТЬ И ЭКОНОМИЧНОСТЬ', 'Снижение эксплуатационных расходов при высокой производительности.'),
+                ],
+            },
+        }
+        manufacturer_by_name = {m.name: m for m in manufacturers}
+        for brand_name, meta in engine_brand_meta.items():
+            man = manufacturer_by_name.get(brand_name)
+            if not man:
+                continue
+            man.features_heading = meta['features_heading']
+            man.save(update_fields=['features_heading'])
+            if meta['features'] and not man.features.exists():
+                for order, (title, text) in enumerate(meta['features']):
+                    ManufacturerFeature.objects.create(
+                        manufacturer=man,
+                        title=title,
+                        description=text,
+                        ordering=order,
+                    )
+
+        engine_samples = [
+            ('Cummins', 'Двигатель Cummins ISF 2.8', 'ENG-CUM-ISF28', Decimal('485000.00')),
+            ('Cummins', 'Двигатель Cummins QSB 6.7', 'ENG-CUM-QSB67', Decimal('920000.00')),
+            ('Cummins', 'Двигатель Cummins QSL 9', 'ENG-CUM-QSL9', Decimal('1450000.00')),
+            ('Caterpillar', 'Двигатель Caterpillar C7.1', 'ENG-CAT-C71', Decimal('1180000.00')),
+            ('Caterpillar', 'Двигатель Caterpillar C9.3', 'ENG-CAT-C93', Decimal('1680000.00')),
+            ('Caterpillar', 'Двигатель Caterpillar C13', 'ENG-CAT-C13', Decimal('2100000.00')),
+            ('Deutz', 'Двигатель Deutz TCD 2.2 L3', 'ENG-DEU-TCD22', Decimal('560000.00')),
+            ('Deutz', 'Двигатель Deutz TCD 6.1 L6', 'ENG-DEU-TCD61', Decimal('980000.00')),
+            ('Deutz', 'Двигатель Deutz TCD 7.8 L6', 'ENG-DEU-TCD78', Decimal('1320000.00')),
+        ]
+
         spare_samples = [
             ('9Y7573 ПЛАТА КРЕПЛЕНИЯ КОМПРЕССОРА CAT', '2047330', Decimal('28600.00')),
             ('ФИЛЬТР МАСЛЯНЫЙ CAT', '1R-0716', Decimal('4250.50')),
@@ -246,6 +297,32 @@ class Command(BaseCommand):
                 for o in range(2):
                     img = ProductImage(product=p, ordering=o)
                     img.image.save(f'prod_{p.pk}_{o}.jpg', fake_image(f'p{p.pk}_{o}.jpg', 500, 500, pid + o), save=True)
+            else:
+                _ensure_product_images(p, pid)
+
+        for i, (brand_name, title, art, price) in enumerate(engine_samples):
+            pid += 1
+            man = manufacturer_by_name[brand_name]
+            p, _ = Product.objects.update_or_create(
+                artikul=art,
+                defaults={
+                    'product_type': ProductType.ENGINES,
+                    'manufacturer': man,
+                    'name': title,
+                    'description': '',
+                    'price': price,
+                    'is_stock': True,
+                    'ordering': 200 + i,
+                },
+            )
+            if not p.images.exists():
+                for o in range(1):
+                    img = ProductImage(product=p, ordering=o)
+                    img.image.save(
+                        f'engine_{p.pk}_{o}.jpg',
+                        fake_image(f'eng{p.pk}_{o}.jpg', 500, 500, pid + o),
+                        save=True,
+                    )
             else:
                 _ensure_product_images(p, pid)
 

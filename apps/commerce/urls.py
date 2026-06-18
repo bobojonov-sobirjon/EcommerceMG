@@ -1,6 +1,10 @@
 from django.urls import path
 
 from commerce.views import (
+    CatalogCategoriesView,
+    EngineManufacturerListView,
+    EngineManufacturerPageByIdView,
+    EngineManufacturerPageBySlugView,
     ManufacturerDetailBySlugView,
     ManufacturerDetailView,
     ManufacturerListView,
@@ -13,6 +17,10 @@ from commerce.views import (
 )
 
 urlpatterns = [
+    path('catalog/categories/', CatalogCategoriesView.as_view()),
+    path('engines/manufacturers/', EngineManufacturerListView.as_view()),
+    path('engines/manufacturers/slug/<slug:slug>/', EngineManufacturerPageBySlugView.as_view()),
+    path('engines/manufacturers/<int:pk>/', EngineManufacturerPageByIdView.as_view()),
     path('manufacturers/', ManufacturerListView.as_view()),
     path('manufacturers/slug/<slug:slug>/', ManufacturerDetailBySlugView.as_view()),
     path('manufacturers/<int:pk>/', ManufacturerDetailView.as_view()),

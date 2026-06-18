@@ -20,10 +20,17 @@ class Manufacturer(models.Model):
         help_text='JPG, PNG, WebP, GIF или SVG.',
     )
     hero_image = models.ImageField(
-        'Обложка (страница производителя)',
+        'Баннер (страница двигателей)',
         upload_to='manufacturers/hero/%Y/%m/',
         blank=True,
         null=True,
+        help_text='Верхний баннер на странице двигателей этого производителя.',
+    )
+    features_heading = models.CharField(
+        'Заголовок блока преимуществ',
+        max_length=255,
+        blank=True,
+        help_text='Например: «Особенности двигателей Caterpillar». Только для страницы двигателей.',
     )
     ordering = models.PositiveSmallIntegerField('Порядок', default=0, db_index=True)
     updated_at = models.DateTimeField('Обновлено', auto_now=True)
@@ -56,13 +63,42 @@ class ManufacturerSeo(SeoRecord):
         return f'SEO — {self.manufacturer.name}'
 
 
+class ManufacturerFeature(models.Model):
+    """Блок преимуществ на странице двигателей производителя (как в макете Figma)."""
+
+    manufacturer = models.ForeignKey(
+        Manufacturer,
+        on_delete=models.CASCADE,
+        related_name='features',
+        verbose_name='Производитель',
+    )
+    title = models.CharField('Заголовок', max_length=255)
+    description = models.TextField('Описание', blank=True)
+    icon = models.ImageField(
+        'Иконка',
+        upload_to='manufacturers/features/%Y/%m/',
+        blank=True,
+        null=True,
+    )
+    ordering = models.PositiveSmallIntegerField('Порядок', default=0)
+
+    class Meta:
+        verbose_name = 'Преимущество производителя'
+        verbose_name_plural = 'Преимущества производителя'
+        ordering = ('ordering', 'id')
+
+    def __str__(self) -> str:
+        return self.title
+
+
 class ProductType(models.TextChoices):
     SPARE_PARTS = 'spare_parts', 'Запчасти'
     TIRES = 'tires', 'Шины для спецтехники'
+    ENGINES = 'engines', 'Двигатели'
 
 
 class Product(models.Model):
-    """Товар: запчасти или шины."""
+    """Товар: запчасти, шины или двигатели."""
 
     product_type = models.CharField(
         'Тип товара',
