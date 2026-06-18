@@ -47,7 +47,17 @@ class BannerAdmin(admin.ModelAdmin):
     ordering = ('ordering', 'id')
     readonly_fields = ('image_preview',)
     fieldsets = (
-        (None, {'fields': ('title', 'type', 'description', 'ordering', 'is_active')}),
+        (
+            None,
+            {
+                'fields': ('title', 'type', 'description', 'ordering', 'is_active'),
+                'description': (
+                    'Слайдер на главной странице сайта. '
+                    'Баннеры страниц двигателей (Cummins, Caterpillar и т.д.) '
+                    'настраиваются в разделе «Каталог → Производители».'
+                ),
+            },
+        ),
         ('Изображение', {'fields': ('image_preview', 'image')}),
     )
 

@@ -76,6 +76,7 @@ JAZZMIN_SETTINGS = {
         "content.News": "fas fa-newspaper",
         "content.NewsImage": "fas fa-photo-video",
         "commerce.Manufacturer": "fas fa-industry",
+        "commerce.ManufacturerFeature": "fas fa-star",
         "commerce.Product": "fas fa-tools",
         "commerce.ProductImage": "fas fa-camera",
         "commerce.Order": "fas fa-shopping-cart",

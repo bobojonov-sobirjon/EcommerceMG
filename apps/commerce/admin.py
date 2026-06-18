@@ -61,8 +61,19 @@ class ManufacturerSeoInline(SeoTabularInline):
 class ManufacturerFeatureInline(admin.TabularInline):
     model = ManufacturerFeature
     extra = 0
+    min_num = 0
     fields = ('title', 'description', 'icon', 'ordering')
     ordering = ('ordering', 'id')
+    classes = ('features-inline',)
+    verbose_name = 'Преимущество'
+    verbose_name_plural = 'Преимущества'
+
+    def get_extra(self, request, obj=None, **kwargs):
+        if obj is None:
+            return 0
+        if obj.features.exists():
+            return 0
+        return 3
 
 
 class OrderProductInline(admin.TabularInline):
@@ -84,7 +95,11 @@ class ManufacturerAdmin(admin.ModelAdmin):
             'Страница двигателей',
             {
                 'fields': ('hero_preview', 'hero_image', 'features_heading'),
-                'description': 'Баннер и блок преимуществ — только для категории «Двигатели».',
+                'description': (
+                    'Баннер и преимущества — для страницы «Двигатели → этот производитель». '
+                    'Не путать с разделом «Баннеры» (слайдер на главной). '
+                    'Блок «Преимущества» — таблица ниже на этой же странице.'
+                ),
             },
         ),
         ('Логотип', {'fields': ('logo_preview', 'logo')}),
@@ -110,11 +125,20 @@ class ManufacturerAdmin(admin.ModelAdmin):
             return _preview_logo(obj.logo.url)
         return '—'
 
-    @admin.display(description='Текущая обложка')
+    @admin.display(description='Текущий баннер')
     def hero_preview(self, obj: Manufacturer):
         if obj.pk and _media_exists(obj.hero_image):
             return _preview_img(obj.hero_image.url)
         return '—'
+
+
+@admin.register(ManufacturerFeature)
+class ManufacturerFeatureAdmin(admin.ModelAdmin):
+    list_display = ('title', 'manufacturer', 'ordering')
+    list_filter = ('manufacturer',)
+    search_fields = ('title', 'description', 'manufacturer__name')
+    autocomplete_fields = ('manufacturer',)
+    ordering = ('manufacturer__ordering', 'ordering', 'id')
 
 
 @admin.register(Product)

@@ -82,6 +82,17 @@
     display: none !important;
 }
 
+/* Преимущества производителя: keng textarea, bo'sh qatorlar ko'rinsin */
+.change-form .inline-group.features-inline table textarea {
+    max-width: min(100%, 36rem) !important;
+    min-width: 16rem !important;
+    min-height: 4rem !important;
+}
+
+.change-form .inline-group.features-inline table tr.empty-form {
+    display: table-row !important;
+}
+
 /* Rasmlar inline: bo'sh qator ko'rinsin */
 .change-form .inline-group.images-inline table tr.empty-form {
     display: table-row !important;
