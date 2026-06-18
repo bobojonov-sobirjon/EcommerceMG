@@ -1,0 +1,1215 @@
+openapi: 3.0.3
+info:
+  title: Ecommerce MG API
+  version: 1.0.0
+  description: Публичный REST API интернет‑витрины (баннеры, контент, каталог запчастей
+    и шин, новости, контакты, заказы без регистрации).
+  contact:
+    name: Поддержка API Ecommerce MG
+    email: support@ecommerce-mg.ru
+  license:
+    name: Проприетарная лицензия
+paths:
+  /api/v1/about/:
+    get:
+      operationId: api_v1_about_retrieve
+      description: 'Singleton: одна карточка с метриками (как в макете).'
+      summary: Страница «О компании»
+      tags:
+      - Компания
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AboutCompany'
+          description: ''
+  /api/v1/banners/:
+    get:
+      operationId: api_v1_banners_list
+      description: Слайдер главной страницы. Фильтр по полю `type` (без учёта регистра).
+        Только чтение.
+      summary: Активные баннеры
+      parameters:
+      - in: query
+        name: type
+        schema:
+          type: string
+        description: 'Тип / акцент слайда (например: НАДЕЖНОСТЬ, КАЧЕСТВО)'
+      tags:
+      - Главная — баннеры
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Banner'
+          description: ''
+  /api/v1/certificates/:
+    get:
+      operationId: api_v1_certificates_list
+      description: 'Блок «Наши сертификаты»: название, превью, ссылка на PDF и размер
+        файла. Только GET.'
+      summary: Список сертификатов
+      tags:
+      - Сертификаты
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Certification'
+          description: ''
+  /api/v1/contacts/:
+    get:
+      operationId: api_v1_contacts_retrieve
+      description: Адрес, email по направлениям и блок телефонов с ссылками.
+      summary: Страница контактов
+      tags:
+      - Контакты
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteContact'
+          description: ''
+  /api/v1/manufacturers/:
+    get:
+      operationId: api_v1_manufacturers_list
+      description: Карточки партнёров для блока «с кем работаем». Только GET.
+      summary: Список производителей
+      tags:
+      - Производители
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ManufacturerList'
+          description: ''
+  /api/v1/manufacturers/{id}/:
+    get:
+      operationId: api_v1_manufacturers_retrieve
+      description: Подробное описание бренда (страница партнёра).
+      summary: Детально по производителю (id)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Производители
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManufacturerDetail'
+          description: ''
+  /api/v1/manufacturers/slug/{slug}/:
+    get:
+      operationId: api_v1_manufacturers_slug_retrieve
+      description: То же, что по id, но поиск по полю `slug`.
+      summary: Детально по производителю (slug)
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - Производители
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManufacturerDetail'
+          description: ''
+  /api/v1/messages/:
+    post:
+      operationId: api_v1_messages_create
+      description: Обратная связь с сайта без регистрации.
+      summary: Отправить форму «Остались вопросы?»
+      tags:
+      - Обращения
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackMessageRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FeedbackMessageRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FeedbackMessageRequest'
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/FeedbackMessageRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          description: No response body
+  /api/v1/news/:
+    get:
+      operationId: api_v1_news_list
+      description: 'Фильтр по типу (`news_type` или `type`). Пагинация: `page`, `page_size`
+        (макс. 80).'
+      summary: Лента новостей
+      parameters:
+      - in: query
+        name: news_type
+        schema:
+          type: string
+          enum:
+          - company
+          - useful
+        description: Тип новости
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Номер страницы (с 1)
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          default: 12
+        description: Размер страницы (не больше 80)
+      - in: query
+        name: type
+        schema:
+          type: string
+          enum:
+          - company
+          - useful
+        description: То же, что `news_type` (альтернативное имя)
+      tags:
+      - Новости
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NewsList'
+          description: ''
+  /api/v1/news/{id}/:
+    get:
+      operationId: api_v1_news_retrieve
+      description: Подробный текст, галерея `images` и SEO-поля.
+      summary: Детальная страница новости (id)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Новости
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsDetail'
+          description: ''
+  /api/v1/news/slug/{slug}/:
+    get:
+      operationId: api_v1_news_slug_retrieve
+      description: То же, что по id, но поиск по полю `slug`.
+      summary: Детальная страница новости (slug)
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - Новости
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsDetail'
+          description: ''
+  /api/v1/orders/:
+    post:
+      operationId: api_v1_orders_create
+      description: Гостевой заказ без аккаунта. Проверяется согласованность сумм с
+        ценами каталога.
+      summary: Создать заявку / заказ
+      tags:
+      - Заказы
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderCreated'
+          description: ''
+  /api/v1/products/:
+    get:
+      operationId: api_v1_products_list
+      description: Фильтры и пагинация через query-string (см. параметры ниже).
+      summary: Список товаров с фильтрами
+      parameters:
+      - in: query
+        name: manufacturer
+        schema:
+          type: integer
+        description: ID производителя
+      - in: query
+        name: max_price
+        schema:
+          type: number
+          format: double
+        description: Максимальная цена с НДС
+      - in: query
+        name: min_price
+        schema:
+          type: number
+          format: double
+        description: Минимальная цена с НДС
+      - in: query
+        name: name
+        schema:
+          type: string
+        description: Поиск по названию, артикулу и описанию (icontains)
+      - in: query
+        name: order_price
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+        description: 'Сортировка по цене: asc (дешевле) или desc (дороже)'
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Номер страницы
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          default: 20
+        description: Размер страницы (не больше 100)
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: 'То же, что `name`: поиск по названию, артикулу и описанию'
+      - in: query
+        name: type
+        schema:
+          type: string
+          enum:
+          - spare_parts
+          - tires
+        description: Тип товара
+      tags:
+      - Каталог — товары
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductList'
+          description: ''
+  /api/v1/products/{id}/:
+    get:
+      operationId: api_v1_products_retrieve
+      description: Галерея через вложенные `images`. SEO-поля в ответе.
+      summary: Товар по id
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Каталог — товары
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetail'
+          description: ''
+  /api/v1/products/{id}/similar/:
+    get:
+      operationId: api_v1_products_similar_list
+      description: Те же производитель и тип товара, исключая текущий элемент.
+      summary: Похожие товары (id)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Каталог — товары
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductList'
+          description: ''
+  /api/v1/products/slug/{slug}/:
+    get:
+      operationId: api_v1_products_slug_retrieve
+      description: То же, что по id, но поиск по полю `slug`.
+      summary: Товар по slug
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - Каталог — товары
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetail'
+          description: ''
+  /api/v1/products/slug/{slug}/similar/:
+    get:
+      operationId: api_v1_products_slug_similar_list
+      description: То же, что по id, но якорный товар ищется по `slug`.
+      summary: Похожие товары (slug)
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - Каталог — товары
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductList'
+          description: ''
+  /schema/:
+    get:
+      operationId: schema_retrieve
+      description: |-
+        OpenApi3 schema for this API. Format can be selected via content negotiation.
+
+        - YAML: application/vnd.oai.openapi
+        - JSON: application/vnd.oai.openapi+json
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - json
+          - yaml
+      - in: query
+        name: lang
+        schema:
+          type: string
+          enum:
+          - af
+          - ar
+          - ar-dz
+          - ast
+          - az
+          - be
+          - bg
+          - bn
+          - br
+          - bs
+          - ca
+          - ckb
+          - cs
+          - cy
+          - da
+          - de
+          - dsb
+          - el
+          - en
+          - en-au
+          - en-gb
+          - eo
+          - es
+          - es-ar
+          - es-co
+          - es-mx
+          - es-ni
+          - es-ve
+          - et
+          - eu
+          - fa
+          - fi
+          - fr
+          - fy
+          - ga
+          - gd
+          - gl
+          - he
+          - hi
+          - hr
+          - hsb
+          - ht
+          - hu
+          - hy
+          - ia
+          - id
+          - ig
+          - io
+          - is
+          - it
+          - ja
+          - ka
+          - kab
+          - kk
+          - km
+          - kn
+          - ko
+          - ky
+          - lb
+          - lt
+          - lv
+          - mk
+          - ml
+          - mn
+          - mr
+          - ms
+          - my
+          - nb
+          - ne
+          - nl
+          - nn
+          - os
+          - pa
+          - pl
+          - pt
+          - pt-br
+          - ro
+          - ru
+          - sk
+          - sl
+          - sq
+          - sr
+          - sr-latn
+          - sv
+          - sw
+          - ta
+          - te
+          - tg
+          - th
+          - tk
+          - tr
+          - tt
+          - udm
+          - ug
+          - uk
+          - ur
+          - uz
+          - vi
+          - zh-hans
+          - zh-hant
+      tags:
+      - schema
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/vnd.oai.openapi:
+              schema:
+                type: object
+            application/yaml:
+              schema:
+                type: object
+            application/vnd.oai.openapi+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+          description: ''
+components:
+  schemas:
+    AboutCompany:
+      type: object
+      properties:
+        description:
+          type: string
+          title: Текст о компании
+        seo_title:
+          type: string
+          readOnly: true
+        seo_description:
+          type: string
+          readOnly: true
+        years_stable:
+          type: string
+          title: Лет стабильной работы
+          maxLength: 32
+        satisfied_clients:
+          type: string
+          title: Довольных клиентов
+          maxLength: 32
+        parts_in_stock:
+          type: string
+          title: Запчастей в наличии
+          maxLength: 32
+        world_brands:
+          type: string
+          title: Мировых брендов
+          maxLength: 32
+      required:
+      - seo_description
+      - seo_title
+    Banner:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          title: Заголовок
+          maxLength: 255
+        type:
+          type: string
+          title: Тип (акцент на слайде)
+          description: 'Например: НАДЕЖНОСТЬ — крупная подпись на фоне слайда'
+          maxLength: 128
+        description:
+          type: string
+          title: Описание
+        image:
+          type: string
+          nullable: true
+          readOnly: true
+      required:
+      - id
+      - image
+      - title
+    Certification:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Название
+          maxLength: 512
+        thumbnail_image:
+          type: string
+          nullable: true
+          readOnly: true
+        pdf:
+          type: string
+          nullable: true
+          readOnly: true
+        pdf_size_mb:
+          type: number
+          format: double
+          nullable: true
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Дата добавления
+      required:
+      - created_at
+      - id
+      - name
+      - pdf
+      - pdf_size_mb
+      - thumbnail_image
+    ContactPhone:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        phone:
+          type: string
+          title: Телефон
+          maxLength: 64
+        telegram:
+          type: string
+          format: uri
+          maxLength: 500
+        max_link:
+          type: string
+          format: uri
+          title: Ссылка (MAX)
+          maxLength: 500
+        label:
+          type: string
+          title: Подпись (например, запчасти / шины)
+          maxLength: 255
+        ordering:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          title: Порядок
+      required:
+      - id
+      - phone
+    FeedbackMessageRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          title: Имя
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+        phone:
+          type: string
+          minLength: 1
+          title: Телефон
+          maxLength: 64
+      required:
+      - email
+      - full_name
+      - phone
+    ManufacturerDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Название
+          maxLength: 255
+        slug:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          title: Описание
+        seo_title:
+          type: string
+          readOnly: true
+        seo_description:
+          type: string
+          readOnly: true
+        logo:
+          type: string
+          format: uri
+          title: Логотип (карточка)
+          description: JPG, PNG, WebP, GIF или SVG.
+          pattern: (?:jpg|jpeg|png|webp|gif|svg)$
+        hero_image:
+          type: string
+          format: uri
+          nullable: true
+          title: Обложка (страница производителя)
+        ordering:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          title: Порядок
+      required:
+      - id
+      - logo
+      - name
+      - seo_description
+      - seo_title
+      - slug
+    ManufacturerList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Название
+          maxLength: 255
+        slug:
+          type: string
+          readOnly: true
+        logo:
+          type: string
+          format: uri
+          title: Логотип (карточка)
+          description: JPG, PNG, WebP, GIF или SVG.
+          pattern: (?:jpg|jpeg|png|webp|gif|svg)$
+        ordering:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          title: Порядок
+      required:
+      - id
+      - logo
+      - name
+      - slug
+    NewsDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          title: Заголовок
+          maxLength: 512
+        slug:
+          type: string
+          readOnly: true
+        news_type:
+          enum:
+          - useful
+          - company
+          type: string
+          description: |-
+            * `useful` - Полезное
+            * `company` - Новости компании
+          x-spec-enum-id: 14d56834846333b0
+          title: Тип
+        news_type_label:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          title: Текст (детально)
+        seo_title:
+          type: string
+          readOnly: true
+        seo_description:
+          type: string
+          readOnly: true
+        published_at:
+          type: string
+          format: date
+          title: Дата
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/NewsImage'
+          readOnly: true
+      required:
+      - id
+      - images
+      - news_type
+      - news_type_label
+      - published_at
+      - seo_description
+      - seo_title
+      - slug
+      - title
+    NewsImage:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        image:
+          type: string
+          format: uri
+          title: Изображение
+        ordering:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          title: Порядок
+      required:
+      - id
+      - image
+    NewsList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          title: Заголовок
+          maxLength: 512
+        slug:
+          type: string
+          readOnly: true
+        news_type:
+          enum:
+          - useful
+          - company
+          type: string
+          description: |-
+            * `useful` - Полезное
+            * `company` - Новости компании
+          x-spec-enum-id: 14d56834846333b0
+          title: Тип
+        news_type_label:
+          type: string
+          readOnly: true
+        published_at:
+          type: string
+          format: date
+          title: Дата
+        preview_image:
+          type: string
+          nullable: true
+          readOnly: true
+      required:
+      - id
+      - news_type
+      - news_type_label
+      - preview_image
+      - published_at
+      - slug
+      - title
+    OrderCreateRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 32
+        total_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemWriteRequest'
+      required:
+      - full_name
+      - items
+      - phone
+      - total_price
+    OrderCreated:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        full_name:
+          type: string
+          title: ФИО / имя
+          maxLength: 255
+        phone:
+          type: string
+          title: Телефон
+          maxLength: 32
+        total_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          title: Итого
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Создано
+        is_seen_moderator:
+          type: boolean
+          title: Новая заявка для модератора
+      required:
+      - created_at
+      - full_name
+      - id
+      - phone
+      - total_price
+    OrderItemWriteRequest:
+      type: object
+      properties:
+        product_id:
+          type: integer
+          minimum: 1
+        quantity:
+          type: integer
+          minimum: 1
+        total_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+      required:
+      - product_id
+      - quantity
+      - total_price
+    ProductDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product_type:
+          enum:
+          - spare_parts
+          - tires
+          type: string
+          description: |-
+            * `spare_parts` - Запчасти
+            * `tires` - Шины для спецтехники
+          x-spec-enum-id: 00f8a2fc21464679
+          title: Тип товара
+        product_type_label:
+          type: string
+          readOnly: true
+        manufacturer:
+          allOf:
+          - $ref: '#/components/schemas/ProductManufacturerMini'
+          readOnly: true
+        name:
+          type: string
+          title: Наименование
+          maxLength: 512
+        slug:
+          type: string
+          readOnly: true
+        artikul:
+          type: string
+          title: Артикул
+          maxLength: 128
+        description:
+          type: string
+          title: Описание
+        seo_title:
+          type: string
+          readOnly: true
+        seo_description:
+          type: string
+          readOnly: true
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          title: Цена с НДС
+        is_stock:
+          type: boolean
+          title: В наличии
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductImage'
+          readOnly: true
+      required:
+      - artikul
+      - id
+      - images
+      - manufacturer
+      - name
+      - price
+      - product_type
+      - product_type_label
+      - seo_description
+      - seo_title
+      - slug
+    ProductImage:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        image:
+          type: string
+          format: uri
+          title: Изображение
+        ordering:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          title: Порядок
+      required:
+      - id
+      - image
+    ProductList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product_type:
+          enum:
+          - spare_parts
+          - tires
+          type: string
+          description: |-
+            * `spare_parts` - Запчасти
+            * `tires` - Шины для спецтехники
+          x-spec-enum-id: 00f8a2fc21464679
+          title: Тип товара
+        product_type_label:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          title: Наименование
+          maxLength: 512
+        slug:
+          type: string
+          readOnly: true
+        artikul:
+          type: string
+          title: Артикул
+          maxLength: 128
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          title: Цена с НДС
+        is_stock:
+          type: boolean
+          title: В наличии
+        manufacturer:
+          allOf:
+          - $ref: '#/components/schemas/ProductManufacturerMini'
+          readOnly: true
+        thumbnail:
+          type: string
+          nullable: true
+          readOnly: true
+      required:
+      - artikul
+      - id
+      - manufacturer
+      - name
+      - price
+      - product_type
+      - product_type_label
+      - slug
+      - thumbnail
+    ProductManufacturerMini:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Название
+          maxLength: 255
+      required:
+      - id
+      - name
+    SiteContact:
+      type: object
+      properties:
+        address:
+          type: string
+          title: Адрес
+        email_spare_parts:
+          type: string
+          format: email
+          title: Email — запчасти
+          maxLength: 254
+        email_tires:
+          type: string
+          format: email
+          title: Email — шины
+          maxLength: 254
+        phones:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContactPhone'
+          readOnly: true
+      required:
+      - phones
+tags:
+- name: Главная — баннеры
+  description: Слайдер главной страницы (только чтение).
+- name: Сертификаты
+  description: 'Сертификаты компании: превью и PDF (только чтение).'
+- name: Компания
+  description: Страница «О компании» с метриками.
+- name: Новости
+  description: Лента материалов с фильтром по типу и пагинацией.
+- name: Обращения
+  description: Форма обратной связи (POST).
+- name: Контакты
+  description: Адрес, email и каналы связи по телефонам.
+- name: Производители
+  description: Список партнёрских брендов и детальные карточки.
+- name: Каталог — товары
+  description: 'Каталог запчастей и шин: фильтрация по типу, производителю, цене,
+    поиск по названию, артикулу и описанию, сортировка по цене (order_price=asc|desc).'
+- name: Заказы
+  description: Приём заказов с корзины (гостевая отправка через POST).
