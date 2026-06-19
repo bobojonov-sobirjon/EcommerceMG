@@ -14,10 +14,12 @@ from django.utils import timezone
 from commerce.models import (
     Manufacturer,
     ManufacturerFeature,
+    ManufacturerSeo,
     Order,
     OrderProduct,
     Product,
     ProductImage,
+    ProductSeo,
     ProductType,
 )
 from content.models import AboutCompany, Banner, Certification, News, NewsImage, NewsType
@@ -80,7 +82,23 @@ def fake_pdf(filename: str, size_kb: int = 780) -> ContentFile:
     )
     target = max(len(header), size_kb * 1024)
     body = header + b'% demo padding\n' + (b'0' * (target - len(header) - 16))
-    return ContentFile(body, name=filename)
+    return ContentFile(body, name=filename        )
+
+
+def _manufacturer_file_slug(name: str) -> str:
+    return name.lower().replace(' ', '_').replace('-', '_')
+
+
+def _ensure_manufacturer_seo(manufacturer: Manufacturer) -> None:
+    record, _ = ManufacturerSeo.objects.get_or_create(manufacturer=manufacturer)
+    if not record.slug:
+        record.save()
+
+
+def _ensure_product_seo(product: Product) -> None:
+    record, _ = ProductSeo.objects.get_or_create(product=product)
+    if not record.slug:
+        record.save()
 
 
 class Command(BaseCommand):
@@ -175,38 +193,79 @@ class Command(BaseCommand):
             )
 
     def _seed_manufacturers_and_products(self) -> None:
-        specs = [
+        # 8 производителей двигателей по макетам Figma
+        engine_specs = [
             (
                 'Caterpillar',
                 0,
-                'Официальные и совместимые запчасти CAT. Контроль качества и сроков поставки.',
+                'Оригинальные дизельные двигатели Caterpillar для спецтехники, карьерной и дорожно-строительной техники.',
             ),
-            ('Cummins', 1, 'Двигатели и компоненты Cummins для спецтехники и генераторов.'),
-            ('Deutz', 2, 'Силовые агрегаты Deutz и расходные материалы.'),
-            ('Komatsu', 3, 'Запчасти и узлы для техники Komatsu.'),
-            ('Epiroc', 4, 'Решения для бурения и горных работ Epiroc.'),
-            ('Sandvik', 5, 'Оборудование и комплектующие Sandvik для тяжёлых условий эксплуатации.'),
+            (
+                'Cummins',
+                1,
+                'Надёжные дизельные двигатели Cummins для спецтехники с гарантией и быстрой поставкой.',
+            ),
+            (
+                'Deutz',
+                2,
+                'Силовые агрегаты Deutz для промышленной, строительной и сельскохозяйственной техники.',
+            ),
+            (
+                'Weichai',
+                3,
+                'Промышленные двигатели Weichai для спецтехники и энергетического оборудования.',
+            ),
+            (
+                'Komatsu',
+                4,
+                'Двигатели Komatsu для экскаваторов, погрузчиков и карьерной техники.',
+            ),
+            (
+                'MTU',
+                5,
+                'Дизельные и газовые двигатели MTU для генераторов и тяжёлой спецтехники.',
+            ),
+            (
+                'Perkins',
+                6,
+                'Двигатели Perkins для строительной, сельскохозяйственной и промышленной техники.',
+            ),
+            (
+                'Volvo Penta',
+                7,
+                'Морские и промышленные двигатели Volvo Penta для судов и спецтехники.',
+            ),
+        ]
+        extra_specs = [
+            ('Epiroc', 80, 'Решения для бурения и горных работ Epiroc.'),
+            ('Sandvik', 90, 'Оборудование и комплектующие Sandvik для тяжёлых условий эксплуатации.'),
         ]
         manufacturers: list[Manufacturer] = []
-        for name, seed, desc in specs:
-            m, created = Manufacturer.objects.get_or_create(
+        for name, seed, desc in engine_specs + extra_specs:
+            file_slug = _manufacturer_file_slug(name)
+            m, _ = Manufacturer.objects.get_or_create(
                 name=name,
                 defaults={
                     'description': desc,
-                    'ordering': seed * 10,
+                    'ordering': seed,
                 },
             )
             if not m.logo.name:
-                m.logo.save(f'logo_{name.lower()}.jpg', fake_image(f'logo_{name}.jpg', 320, 200, seed), save=True)
+                m.logo.save(
+                    f'logo_{file_slug}.jpg',
+                    fake_image(f'logo_{file_slug}.jpg', 320, 200, seed),
+                    save=True,
+                )
             if not m.hero_image.name:
                 m.hero_image.save(
-                    f'hero_{name.lower()}.jpg',
-                    fake_image(f'hero_{name}.jpg', 1200, 600, seed + 100),
+                    f'hero_{file_slug}.jpg',
+                    fake_image(f'hero_{file_slug}.jpg', 1200, 600, seed + 100),
                     save=True,
                 )
             m.description = desc
-            m.ordering = seed * 10
+            m.ordering = seed
             m.save()
+            _ensure_manufacturer_seo(m)
             manufacturers.append(m)
 
         engine_brand_meta = {
@@ -218,7 +277,7 @@ class Command(BaseCommand):
                 'features_heading': 'Особенности двигателей Caterpillar',
                 'features': [
                     ('НАДЁЖНОСТЬ', 'Двигатели CAT рассчитаны на экстремальные нагрузки и длительную эксплуатацию.'),
-                    ('ЭФФЕКТИВНОСТЬ', 'Оптимальный расход топлива и высокая мощность при стабильной работе.'),
+                    ('ВЫНОСЛИВОСТЬ', 'Устойчивость к вибрации, пыли и перепадам температур в карьере и на стройке.'),
                     ('ТЕХНИЧЕСКОЕ ОБСЛУЖИВАНИЕ', 'Развитая сервисная сеть и доступность оригинальных комплектующих.'),
                 ],
             },
@@ -230,6 +289,11 @@ class Command(BaseCommand):
                     ('ЭФФЕКТИВНОСТЬ И ЭКОНОМИЧНОСТЬ', 'Снижение эксплуатационных расходов при высокой производительности.'),
                 ],
             },
+            'Weichai': {'features_heading': '', 'features': []},
+            'Komatsu': {'features_heading': '', 'features': []},
+            'MTU': {'features_heading': '', 'features': []},
+            'Perkins': {'features_heading': '', 'features': []},
+            'Volvo Penta': {'features_heading': '', 'features': []},
         }
         manufacturer_by_name = {m.name: m for m in manufacturers}
         for brand_name, meta in engine_brand_meta.items():
@@ -238,7 +302,8 @@ class Command(BaseCommand):
                 continue
             man.features_heading = meta['features_heading']
             man.save(update_fields=['features_heading'])
-            if meta['features'] and not man.features.exists():
+            if meta['features']:
+                man.features.all().delete()
                 for order, (title, text) in enumerate(meta['features']):
                     ManufacturerFeature.objects.create(
                         manufacturer=man,
@@ -257,16 +322,26 @@ class Command(BaseCommand):
             ('Deutz', 'Двигатель Deutz TCD 2.2 L3', 'ENG-DEU-TCD22', Decimal('560000.00')),
             ('Deutz', 'Двигатель Deutz TCD 6.1 L6', 'ENG-DEU-TCD61', Decimal('980000.00')),
             ('Deutz', 'Двигатель Deutz TCD 7.8 L6', 'ENG-DEU-TCD78', Decimal('1320000.00')),
+            ('Weichai', 'Двигатель Weichai WP10', 'ENG-WEI-WP10', Decimal('740000.00')),
+            ('Weichai', 'Двигатель Weichai WP12', 'ENG-WEI-WP12', Decimal('890000.00')),
+            ('Komatsu', 'Двигатель Komatsu SAA6D107E', 'ENG-KOM-SAA6D107', Decimal('1350000.00')),
+            ('Komatsu', 'Двигатель Komatsu SAA6D125E', 'ENG-KOM-SAA6D125', Decimal('1580000.00')),
+            ('MTU', 'Двигатель MTU Series 1000', 'ENG-MTU-1000', Decimal('2450000.00')),
+            ('MTU', 'Двигатель MTU Series 1500', 'ENG-MTU-1500', Decimal('3100000.00')),
+            ('Perkins', 'Двигатель Perkins 1104C-44TA', 'ENG-PER-1104C44', Decimal('620000.00')),
+            ('Perkins', 'Двигатель Perkins 1206F-E70TTA', 'ENG-PER-1206F70', Decimal('780000.00')),
+            ('Volvo Penta', 'Двигатель Volvo Penta TAD650VE', 'ENG-VOL-TAD650', Decimal('1120000.00')),
+            ('Volvo Penta', 'Двигатель Volvo Penta TAD881VE', 'ENG-VOL-TAD881', Decimal('1490000.00')),
         ]
 
         spare_samples = [
-            ('9Y7573 ПЛАТА КРЕПЛЕНИЯ КОМПРЕССОРА CAT', '2047330', Decimal('28600.00')),
-            ('ФИЛЬТР МАСЛЯНЫЙ CAT', '1R-0716', Decimal('4250.50')),
-            ('ТУРБОКОМПРЕССОР CUMMINS HE351', '4038597', Decimal('125900.00')),
-            ('ВОДЯНОЙ НАСОС DEUTZ 1013', '04259547', Decimal('18900.00')),
-            ('ПЛАНЕТАРНЫЙ РЕДУКТОР KOMATSU', '55555-00011', Decimal('340000.00')),
-            ('БУРОВОЙ НАКОНЕЧНИК EPIROC', 'EPI-7721', Decimal('78500.00')),
-            ('ФИЛЬТР ВОЗДУШНЫЙ SANDVIK', 'SNV-AF90', Decimal('6200.00')),
+            ('9Y7573 ПЛАТА КРЕПЛЕНИЯ КОМПРЕССОРА CAT', '2047330', 'Caterpillar', Decimal('28600.00')),
+            ('ФИЛЬТР МАСЛЯНЫЙ CAT', '1R-0716', 'Caterpillar', Decimal('4250.50')),
+            ('ТУРБОКОМПРЕССОР CUMMINS HE351', '4038597', 'Cummins', Decimal('125900.00')),
+            ('ВОДЯНОЙ НАСОС DEUTZ 1013', '04259547', 'Deutz', Decimal('18900.00')),
+            ('ПЛАНЕТАРНЫЙ РЕДУКТОР KOMATSU', '55555-00011', 'Komatsu', Decimal('340000.00')),
+            ('БУРОВОЙ НАКОНЕЧНИК EPIROC', 'EPI-7721', 'Epiroc', Decimal('78500.00')),
+            ('ФИЛЬТР ВОЗДУШНЫЙ SANDVIK', 'SNV-AF90', 'Sandvik', Decimal('6200.00')),
         ]
         tire_samples = [
             ('Шина 23.5-25 E-3/L-3 TL', 'TIRE-23525', Decimal('185000.00')),
@@ -275,9 +350,9 @@ class Command(BaseCommand):
         ]
 
         pid = 0
-        for i, (title, art, price) in enumerate(spare_samples):
+        for i, (title, art, brand_name, price) in enumerate(spare_samples):
             pid += 1
-            man = manufacturers[i % len(manufacturers)]
+            man = manufacturer_by_name[brand_name]
             p, _ = Product.objects.update_or_create(
                 artikul=art,
                 defaults={
@@ -293,6 +368,7 @@ class Command(BaseCommand):
                     'ordering': i,
                 },
             )
+            _ensure_product_seo(p)
             if not p.images.exists():
                 for o in range(2):
                     img = ProductImage(product=p, ordering=o)
@@ -315,6 +391,7 @@ class Command(BaseCommand):
                     'ordering': 200 + i,
                 },
             )
+            _ensure_product_seo(p)
             if not p.images.exists():
                 for o in range(1):
                     img = ProductImage(product=p, ordering=o)
@@ -328,7 +405,7 @@ class Command(BaseCommand):
 
         for i, (title, art, price) in enumerate(tire_samples):
             pid += 1
-            man = manufacturers[(i + 2) % len(manufacturers)]
+            man = manufacturer_by_name['Caterpillar']
             p, _ = Product.objects.update_or_create(
                 artikul=art,
                 defaults={
@@ -341,6 +418,7 @@ class Command(BaseCommand):
                     'ordering': 100 + i,
                 },
             )
+            _ensure_product_seo(p)
             if not p.images.exists():
                 for o in range(2):
                     img = ProductImage(product=p, ordering=o)

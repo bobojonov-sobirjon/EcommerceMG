@@ -121,6 +121,12 @@ class Product(models.Model):
         decimal_places=2,
         validators=[MinValueValidator(Decimal('0'))],
     )
+    price_on_request = models.BooleanField(
+        'Цена по запросу',
+        default=False,
+        db_index=True,
+        help_text='Если включено — на сайте показывается «Цена по запросу», а не сумма.',
+    )
     is_stock = models.BooleanField('В наличии', default=True, db_index=True)
     ordering = models.PositiveSmallIntegerField('Порядок', default=0, db_index=True)
     created_at = models.DateTimeField('Создано', auto_now_add=True)

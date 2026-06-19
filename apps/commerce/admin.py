@@ -151,10 +151,11 @@ class ProductAdmin(admin.ModelAdmin):
         'product_type',
         'manufacturer',
         'price',
+        'price_on_request',
         'is_stock',
     )
     list_display_links = ('name', 'thumbnail_list')
-    list_filter = ('product_type', 'manufacturer', 'is_stock')
+    list_filter = ('product_type', 'manufacturer', 'is_stock', 'price_on_request')
     search_fields = (
         'name',
         'artikul',
@@ -175,6 +176,7 @@ class ProductAdmin(admin.ModelAdmin):
                     'artikul',
                     'description',
                     'price',
+                    'price_on_request',
                     'is_stock',
                     'ordering',
                 ),

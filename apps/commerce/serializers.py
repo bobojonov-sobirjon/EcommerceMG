@@ -145,6 +145,7 @@ class ProductListSerializer(SlugFromSeoRecordSerializer, serializers.ModelSerial
             'slug',
             'artikul',
             'price',
+            'price_on_request',
             'is_stock',
             'manufacturer',
             'thumbnail',
@@ -187,6 +188,7 @@ class ProductDetailSerializer(SeoRecordSerializer, serializers.ModelSerializer):
             'seo_title',
             'seo_description',
             'price',
+            'price_on_request',
             'is_stock',
             'images',
         )
@@ -225,6 +227,15 @@ class OrderCreateSerializer(serializers.Serializer):
                 if pid not in products_map:
                     raise serializers.ValidationError({'items': f'Товар id={pid} не найден'})
                 product = products_map[pid]
+                if product.price_on_request:
+                    raise serializers.ValidationError(
+                        {
+                            'items': (
+                                f'Товар id={pid} («{product.name}») — цена по запросу. '
+                                'Оформите заявку через форму обратной связи.'
+                            ),
+                        },
+                    )
                 line_total: Decimal = row['total_price']
                 qty = row['quantity']
                 expected = (product.price * qty).quantize(Decimal('0.01'))
