@@ -66,8 +66,11 @@ class Command(BaseCommand):
             for pk, art, name, ptype in sample:
                 self.stdout.write(f'  #{pk} [{art}] {name[:60]} (сейчас: {ptype})')
 
-        tail = list(qs.values_list('pk', 'artikul', 'name', 'product_type')[-3:])
-        if len(tail) > 5 or (tail and tail[0] not in sample):
+        if total > 5:
+            tail = list(
+                qs.order_by('-pk').values_list('pk', 'artikul', 'name', 'product_type')[:3],
+            )
+            tail.reverse()
             self.stdout.write('Последние записи:')
             for pk, art, name, ptype in tail:
                 self.stdout.write(f'  #{pk} [{art}] {name[:60]} (сейчас: {ptype})')
