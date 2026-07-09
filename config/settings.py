@@ -22,7 +22,14 @@ SECRET_KEY = 'django-insecure-_be8&r60022kn5csg0q*p-=p=ij1$nr4ol0=rtkl+v_6btb3ka
 
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+_DEFAULT_ALLOWED_HOSTS = (
+    'localhost,127.0.0.1,admin.maksan-group.ru,maksan-group.ru,www.maksan-group.ru'
+)
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv('ALLOWED_HOSTS', _DEFAULT_ALLOWED_HOSTS).split(',')
+    if host.strip()
+]
 
 
 LOCAL_APPS = [
@@ -228,21 +235,37 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
 }
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:5173",
-    "https://adent-admin.migfastkg.ru"
+_LOCAL_DEV_ORIGINS = [
+    'http://localhost:3000',
+    'http://localhost:8000',
+    'http://127.0.0.1:5173',
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:5173",
-    "https://sudo certbot --nginx -d"
+_PRODUCTION_ORIGINS = [
+    'https://admin.maksan-group.ru',
+    'https://maksan-group.ru',
+    'https://www.maksan-group.ru',
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True
+_extra_csrf = [
+    origin.strip().rstrip('/')
+    for origin in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
+    if origin.strip()
+]
+CSRF_TRUSTED_ORIGINS = _LOCAL_DEV_ORIGINS + _PRODUCTION_ORIGINS + _extra_csrf
+
+_extra_cors = [
+    origin.strip().rstrip('/')
+    for origin in os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
+    if origin.strip()
+]
+CORS_ALLOWED_ORIGINS = _LOCAL_DEV_ORIGINS + _PRODUCTION_ORIGINS + _extra_cors
+
+CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'false').strip().lower() in (
+    '1',
+    'true',
+    'yes',
+)
 CORS_ALLOW_CREDENTIALS = True
 CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
 
@@ -269,13 +292,13 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 
-CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', '').strip().lower() in ('1', 'true', 'yes')
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_USE_SESSIONS = False
 CSRF_COOKIE_NAME = 'csrftoken'
 
-SESSION_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', '').strip().lower() in ('1', 'true', 'yes')
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_HTTPONLY = True
 
