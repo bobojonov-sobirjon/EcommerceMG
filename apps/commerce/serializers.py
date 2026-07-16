@@ -134,6 +134,7 @@ class ProductListSerializer(SlugFromSeoRecordSerializer, serializers.ModelSerial
     manufacturer = ProductManufacturerMiniSerializer(read_only=True)
     thumbnail = serializers.SerializerMethodField()
     product_type_label = serializers.CharField(source='get_product_type_display', read_only=True)
+    price = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -150,6 +151,13 @@ class ProductListSerializer(SlugFromSeoRecordSerializer, serializers.ModelSerial
             'manufacturer',
             'thumbnail',
         )
+
+    @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=2, allow_null=True))
+    def get_price(self, obj: Product):
+        """При «цене по запросу» не отдаём число — фронт показывает текст, а не 99999."""
+        if obj.price_on_request:
+            return None
+        return obj.price
 
     @extend_schema_field(serializers.CharField(allow_null=True, required=False))
     def get_thumbnail(self, obj: Product):
@@ -173,6 +181,7 @@ class ProductDetailSerializer(SeoRecordSerializer, serializers.ModelSerializer):
     manufacturer = ProductManufacturerMiniSerializer(read_only=True)
     images = ProductImageSerializer(many=True, read_only=True)
     product_type_label = serializers.CharField(source='get_product_type_display', read_only=True)
+    price = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -192,6 +201,12 @@ class ProductDetailSerializer(SeoRecordSerializer, serializers.ModelSerializer):
             'is_stock',
             'images',
         )
+
+    @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=2, allow_null=True))
+    def get_price(self, obj: Product):
+        if obj.price_on_request:
+            return None
+        return obj.price
 
 
 class OrderItemWriteSerializer(serializers.Serializer):

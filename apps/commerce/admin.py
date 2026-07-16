@@ -1,3 +1,6 @@
+from decimal import Decimal
+
+from django import forms
 from django.contrib import admin, messages
 from django.core.files.storage import default_storage
 from django.utils.html import format_html
@@ -141,8 +144,32 @@ class ManufacturerFeatureAdmin(admin.ModelAdmin):
     ordering = ('manufacturer__ordering', 'ordering', 'id')
 
 
+class ProductAdminForm(forms.ModelForm):
+    class Meta:
+        model = Product
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['price'].required = False
+        self.fields['price'].help_text = (
+            'Можно оставить пустым, если включено «Цена по запросу».'
+        )
+
+    def clean(self):
+        cleaned = super().clean()
+        on_request = cleaned.get('price_on_request')
+        price = cleaned.get('price')
+        if on_request:
+            cleaned['price'] = Decimal('0')
+        elif price is None:
+            self.add_error('price', 'Укажите цену или включите «Цена по запросу».')
+        return cleaned
+
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
+    form = ProductAdminForm
     list_display = (
         'thumbnail_list',
         'name',
@@ -183,6 +210,11 @@ class ProductAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+    def save_model(self, request, obj, form, change):
+        if obj.price_on_request:
+            obj.price = Decimal('0')
+        super().save_model(request, obj, form, change)
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
