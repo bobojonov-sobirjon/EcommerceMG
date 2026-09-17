@@ -44,6 +44,7 @@ qrcode>=7.4.0
 # Utilities
 requests>=2.31.0
 PyYAML>=6.0.0
+openpyxl>=3.1.0
 
 # Typing
 typing-extensions>=4.9.0
