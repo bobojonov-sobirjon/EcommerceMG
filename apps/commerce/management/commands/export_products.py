@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 import csv
+import os
 from datetime import datetime
 from pathlib import Path
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from django.db.models import Count
 
 from commerce.models import Product, ProductType
 
@@ -28,13 +28,38 @@ HEADERS = [
     'Описание',
     'Порядок',
     'Кол-во фото',
+    'Главное фото (ссылка)',
+    'Все фото (ссылки)',
     'Создано',
 ]
 
+# Колонка «Главное фото» — 16-я (P), в Excel делаем кликабельной.
+MAIN_PHOTO_COL = 16
 
-def _product_rows(qs):
-    for p in qs.iterator(chunk_size=500):
+
+def _absolute_media_url(file_field, base_url: str) -> str:
+    if not file_field or not file_field.name:
+        return ''
+    url = file_field.url
+    if url.startswith('http://') or url.startswith('https://'):
+        return url
+    return f'{base_url.rstrip("/")}{url}'
+
+
+def _image_urls(product: Product, base_url: str) -> list[str]:
+    images = sorted(product.images.all(), key=lambda img: (img.ordering, img.pk))
+    urls = []
+    for img in images:
+        url = _absolute_media_url(img.image, base_url)
+        if url:
+            urls.append(url)
+    return urls
+
+
+def _product_rows(qs, base_url: str):
+    for p in qs:
         seo = getattr(p, 'seo_record', None)
+        urls = _image_urls(p, base_url)
         yield [
             p.pk,
             p.artikul,
@@ -50,7 +75,9 @@ def _product_rows(qs):
             seo.seo_description if seo else '',
             p.description or '',
             p.ordering,
-            getattr(p, 'images_count', 0) or 0,
+            len(urls),
+            urls[0] if urls else '',
+            '\n'.join(urls),
             p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else '',
         ]
 
@@ -77,15 +104,26 @@ class Command(BaseCommand):
             default='',
             help='Путь к файлу (по умолчанию media/exports/...)',
         )
+        parser.add_argument(
+            '--base-url',
+            type=str,
+            default='',
+            help='Домен для ссылок на фото (по умолчанию PUBLIC_SITE_URL или https://admin.maksan-group.ru)',
+        )
 
     def handle(self, *args, **options):
         fmt: str = options['format']
         ptype = options['type']
         output = (options['output'] or '').strip()
+        base_url = (
+            (options['base_url'] or '').strip()
+            or os.getenv('PUBLIC_SITE_URL', '').strip()
+            or 'https://admin.maksan-group.ru'
+        ).rstrip('/')
 
         qs = (
             Product.objects.select_related('manufacturer', 'seo_record')
-            .annotate(images_count=Count('images'))
+            .prefetch_related('images')
             .order_by('product_type', 'manufacturer__name', 'artikul', 'id')
         )
         if ptype:
@@ -106,7 +144,7 @@ class Command(BaseCommand):
         path = Path(output)
         path.parent.mkdir(parents=True, exist_ok=True)
 
-        rows = list(_product_rows(qs))
+        rows = list(_product_rows(qs, base_url))
 
         if fmt == 'xlsx':
             self._write_xlsx(path, rows)
@@ -124,7 +162,7 @@ class Command(BaseCommand):
     def _write_xlsx(self, path: Path, rows: list) -> None:
         try:
             from openpyxl import Workbook
-            from openpyxl.styles import Font
+            from openpyxl.styles import Alignment, Font
         except ImportError:
             self.stdout.write(
                 self.style.WARNING('openpyxl не установлен — сохраняю CSV. pip install openpyxl'),
@@ -140,8 +178,17 @@ class Command(BaseCommand):
         ws.append(HEADERS)
         for cell in ws[1]:
             cell.font = Font(bold=True)
+        link_font = Font(color='0563C1', underline='single')
+        wrap = Alignment(wrap_text=True, vertical='top')
         for row in rows:
             ws.append(row)
+            excel_row = ws.max_row
+            photo_cell = ws.cell(row=excel_row, column=MAIN_PHOTO_COL)
+            if photo_cell.value:
+                photo_cell.hyperlink = str(photo_cell.value)
+                photo_cell.font = link_font
+            all_photos = ws.cell(row=excel_row, column=MAIN_PHOTO_COL + 1)
+            all_photos.alignment = wrap
 
         widths = {
             'A': 8,
@@ -159,7 +206,9 @@ class Command(BaseCommand):
             'M': 40,
             'N': 10,
             'O': 12,
-            'P': 18,
+            'P': 55,
+            'Q': 55,
+            'R': 18,
         }
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
