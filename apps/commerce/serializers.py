@@ -125,9 +125,15 @@ class ProductManufacturerMiniSerializer(serializers.ModelSerializer):
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
+    thumbnail = serializers.SerializerMethodField()
+
     class Meta:
         model = ProductImage
-        fields = ('id', 'image', 'ordering')
+        fields = ('id', 'image', 'thumbnail', 'ordering')
+
+    @extend_schema_field(serializers.CharField(allow_null=True, required=False))
+    def get_thumbnail(self, obj: ProductImage):
+        return _absolute_media_url(self, obj.thumbnail) or _absolute_media_url(self, obj.image)
 
 
 class ProductListSerializer(SlugFromSeoRecordSerializer, serializers.ModelSerializer):
@@ -168,13 +174,9 @@ class ProductListSerializer(SlugFromSeoRecordSerializer, serializers.ModelSerial
             first = imgs[0] if imgs else None
         else:
             first = obj.images.order_by('ordering', 'pk').first()
-        if first and first.image:
-            request = self.context.get('request')
-            url = first.image.url
-            if request:
-                return request.build_absolute_uri(url)
-            return url
-        return None
+        if not first:
+            return None
+        return _absolute_media_url(self, first.thumbnail) or _absolute_media_url(self, first.image)
 
 
 class ProductDetailSerializer(SeoRecordSerializer, serializers.ModelSerializer):
@@ -242,17 +244,12 @@ class OrderCreateSerializer(serializers.Serializer):
                 if pid not in products_map:
                     raise serializers.ValidationError({'items': f'Товар id={pid} не найден'})
                 product = products_map[pid]
-                if product.price_on_request:
-                    raise serializers.ValidationError(
-                        {
-                            'items': (
-                                f'Товар id={pid} («{product.name}») — цена по запросу. '
-                                'Оформите заявку через форму обратной связи.'
-                            ),
-                        },
-                    )
-                line_total: Decimal = row['total_price']
                 qty = row['quantity']
+                if product.price_on_request:
+                    # Стоимость уточняет менеджер, сумма строки всегда 0.
+                    lines.append((product, qty, Decimal('0')))
+                    continue
+                line_total: Decimal = row['total_price']
                 expected = (product.price * qty).quantize(Decimal('0.01'))
                 tolerance = Decimal('0.05') * qty + Decimal('1')
                 if abs(line_total - expected) > tolerance:
@@ -274,7 +271,13 @@ class OrderCreateSerializer(serializers.Serializer):
                 is_seen_moderator=True,
             )
             ops = [
-                OrderProduct(order=order, product=p, quantity=q, total_price=l)
+                OrderProduct(
+                    order=order,
+                    product=p,
+                    quantity=q,
+                    total_price=l,
+                    price_on_request=p.price_on_request,
+                )
                 for (p, q, l) in lines
             ]
             OrderProduct.objects.bulk_create(ops)

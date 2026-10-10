@@ -1,4 +1,6 @@
+import logging
 from decimal import Decimal
+from pathlib import Path
 
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -6,6 +8,7 @@ from django.db import models
 from commerce.validators import validate_manufacturer_logo
 from config.seo import SeoRecord
 
+logger = logging.getLogger(__name__)
 
 
 class Manufacturer(models.Model):
@@ -113,7 +116,14 @@ class Product(models.Model):
         verbose_name='Производитель',
     )
     name = models.CharField('Наименование', max_length=512)
-    artikul = models.CharField('Артикул', max_length=128, db_index=True)
+    artikul = models.CharField(
+        'Артикул',
+        max_length=128,
+        db_index=True,
+        blank=True,
+        default='',
+        help_text='Обязателен для запчастей и двигателей, для шин — необязателен.',
+    )
     description = models.TextField('Описание', blank=True)
     price = models.DecimalField(
         'Цена с НДС',
@@ -156,7 +166,7 @@ class ProductSeo(SeoRecord):
         verbose_name_plural = 'SEO'
 
     def slug_source(self) -> str:
-        return f'{self.product.name}-{self.product.artikul}'
+        return '-'.join(part for part in (self.product.name, self.product.artikul) if part)
 
     def __str__(self) -> str:
         return f'SEO — {self.product.name}'
@@ -170,6 +180,12 @@ class ProductImage(models.Model):
         verbose_name='Товар',
     )
     image = models.ImageField('Изображение', upload_to='products/%Y/%m/')
+    thumbnail = models.ImageField(
+        'Превью (webp)',
+        upload_to='products/thumbs/%Y/%m/',
+        blank=True,
+        editable=False,
+    )
     ordering = models.PositiveSmallIntegerField('Порядок', default=0)
 
     class Meta:
@@ -177,8 +193,39 @@ class ProductImage(models.Model):
         verbose_name_plural = 'Изображения товара'
         ordering = ('ordering', 'id')
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._loaded_image_name = self.image.name if self.image else ''
+
     def __str__(self) -> str:
         return f'#{self.pk} для {self.product_id}'
+
+    def save(self, *args, **kwargs):
+        image_changed = bool(self.image) and self.image.name != self._loaded_image_name
+        super().save(*args, **kwargs)
+        if self.image and (image_changed or not self.thumbnail):
+            self.regenerate_thumbnail()
+
+    def regenerate_thumbnail(self) -> bool:
+        from commerce.thumbnails import build_webp_thumbnail
+
+        content = build_webp_thumbnail(self.image)
+        if content is None:
+            return False
+        old_name = self.thumbnail.name if self.thumbnail else ''
+        try:
+            self.thumbnail.save(f'{Path(self.image.name).stem}.webp', content, save=False)
+        except OSError as exc:
+            logger.warning('Не удалось сохранить превью для изображения #%s: %s', self.pk, exc)
+            return False
+        type(self).objects.filter(pk=self.pk).update(thumbnail=self.thumbnail.name)
+        if old_name and old_name != self.thumbnail.name:
+            try:
+                self.thumbnail.storage.delete(old_name)
+            except OSError:
+                pass
+        self._loaded_image_name = self.image.name
+        return True
 
 
 class Order(models.Model):
@@ -230,6 +277,11 @@ class OrderProduct(models.Model):
         max_digits=14,
         decimal_places=2,
         validators=[MinValueValidator(Decimal('0'))],
+    )
+    price_on_request = models.BooleanField(
+        'Цена по запросу',
+        default=False,
+        help_text='Товар был «по запросу» на момент заказа — стоимость нужно уточнить у клиента.',
     )
 
     class Meta:

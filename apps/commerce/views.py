@@ -1,5 +1,7 @@
+import logging
 from decimal import Decimal
 
+from django.db import transaction
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404
 from drf_spectacular.types import OpenApiTypes
@@ -23,6 +25,10 @@ from commerce.serializers import (
     ProductDetailSerializer,
     ProductListSerializer,
 )
+from commerce.notifications import send_order_notifications
+
+logger = logging.getLogger(__name__)
+
 
 def product_filter(qs, request, *, apply_type=True, apply_manufacturer=True):
     params = request.query_params
@@ -463,10 +469,18 @@ def _similar_products(anchor: Product, request):
     return ProductListSerializer(out, many=True, context={'request': request}).data
 
 
+def _notify_about_order(order_id: int) -> None:
+    try:
+        send_order_notifications(order_id)
+    except Exception:
+        logger.exception('Ошибка при отправке уведомлений о заказе #%s', order_id)
+
+
 def _persist_order(data):
     ser = OrderCreateSerializer(data=data)
     ser.is_valid(raise_exception=True)
     order = ser.save()
+    transaction.on_commit(lambda: _notify_about_order(order.pk))
     return OrderCreatedSerializer(order).data
 
 
@@ -476,7 +490,11 @@ class OrderCreateView(APIView):
     @extend_schema(
         tags=['Заказы'],
         summary='Создать заявку / заказ',
-        description='Гостевой заказ без аккаунта. Проверяется согласованность сумм с ценами каталога.',
+        description=(
+            'Гостевой заказ без аккаунта. Проверяется согласованность сумм с ценами каталога. '
+            'Товары с `price_on_request=true` принимаются, сумма строки для них всегда 0. '
+            'Письмо уходит на почту: запчасти и двигатели — info, шины — почта по шинам.'
+        ),
         request=OrderCreateSerializer,
         responses={201: OrderCreatedSerializer},
     )

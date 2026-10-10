@@ -3,6 +3,7 @@ from decimal import Decimal
 from django import forms
 from django.contrib import admin, messages
 from django.core.files.storage import default_storage
+from django.db.models import Exists, OuterRef
 from django.utils.html import format_html
 
 from commerce.models import (
@@ -14,6 +15,7 @@ from commerce.models import (
     Product,
     ProductImage,
     ProductSeo,
+    ProductType,
 )
 from config.admin_seo import SeoTabularInline
 
@@ -83,6 +85,8 @@ class OrderProductInline(admin.TabularInline):
     model = OrderProduct
     raw_id_fields = ('product',)
     extra = 0
+    fields = ('product', 'quantity', 'total_price', 'price_on_request')
+    readonly_fields = ('price_on_request',)
 
 
 @admin.register(Manufacturer)
@@ -164,6 +168,9 @@ class ProductAdminForm(forms.ModelForm):
             cleaned['price'] = Decimal('0')
         elif price is None:
             self.add_error('price', 'Укажите цену или включите «Цена по запросу».')
+        product_type = cleaned.get('product_type')
+        if product_type and product_type != ProductType.TIRES and not (cleaned.get('artikul') or '').strip():
+            self.add_error('artikul', 'Артикул обязателен для запчастей и двигателей.')
         return cleaned
 
 
@@ -239,7 +246,8 @@ class ProductAdmin(admin.ModelAdmin):
             if first and _media_exists(first.image):
                 img = first
         if img:
-            return _preview_img(img.image.url, 'admin-image-preview--list')
+            preview = img.thumbnail if img.thumbnail else img.image
+            return _preview_img(preview.url, 'admin-image-preview--list')
         return '—'
 
 
@@ -250,6 +258,7 @@ class OrderAdmin(admin.ModelAdmin):
         'new_badge',
         'phone',
         'total_price',
+        'has_price_on_request',
         'is_seen_moderator',
         'created_at',
     )
@@ -257,6 +266,14 @@ class OrderAdmin(admin.ModelAdmin):
     search_fields = ('full_name', 'phone')
     inlines = (OrderProductInline,)
     ordering = ('-created_at',)
+
+    def get_queryset(self, request):
+        on_request_lines = OrderProduct.objects.filter(order=OuterRef('pk'), price_on_request=True)
+        return super().get_queryset(request).annotate(_has_on_request=Exists(on_request_lines))
+
+    @admin.display(description='Цена по запросу', boolean=True, ordering='_has_on_request')
+    def has_price_on_request(self, obj: Order):
+        return obj._has_on_request
 
     @admin.display(description='')
     def new_badge(self, obj: Order):

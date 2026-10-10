@@ -313,7 +313,13 @@ SITE_ID = 1
 
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'true').strip().lower() in ('1', 'true', 'yes', 'y')
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'false').strip().lower() in ('1', 'true', 'yes', 'y')
+# Django не допускает TLS и SSL одновременно: при SSL (порт 465) TLS выключается.
+EMAIL_USE_TLS = (
+    not EMAIL_USE_SSL
+    and os.getenv('EMAIL_USE_TLS', 'true').strip().lower() in ('1', 'true', 'yes', 'y')
+)
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '15'))
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '').strip()
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').strip()
 
@@ -328,6 +334,12 @@ DEFAULT_FROM_EMAIL = (
     or EMAIL_HOST_USER
     or 'no-reply@ecommerce-mg.local'
 )
+
+# Получатели писем о заказах, если в «Контакты сайта» email не заполнен.
+ORDER_EMAIL_SPARE_PARTS = os.getenv('ORDER_EMAIL_SPARE_PARTS', 'info@maksan-group.ru').strip()
+ORDER_EMAIL_TIRES = os.getenv('ORDER_EMAIL_TIRES', 'andrey.ivanov@maksan-group.ru').strip()
+
+PUBLIC_SITE_URL = os.getenv('PUBLIC_SITE_URL', 'https://admin.maksan-group.ru').strip().rstrip('/')
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Ecommerce MG API',
