@@ -237,8 +237,11 @@ SIMPLE_JWT = {
 
 _LOCAL_DEV_ORIGINS = [
     'http://localhost:3000',
-    'http://localhost:8000',
+    'http://127.0.0.1:3000',
+    'http://localhost:5173',
     'http://127.0.0.1:5173',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
 ]
 
 _PRODUCTION_ORIGINS = [
@@ -261,7 +264,8 @@ _extra_cors = [
 ]
 CORS_ALLOWED_ORIGINS = _LOCAL_DEV_ORIGINS + _PRODUCTION_ORIGINS + _extra_cors
 
-CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'false').strip().lower() in (
+# Публичный API без авторизации по cookie — разрешаем запросы с любого origin (в т.ч. локальный фронт).
+CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'true').strip().lower() in (
     '1',
     'true',
     'yes',
