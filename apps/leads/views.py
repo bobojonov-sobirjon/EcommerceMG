@@ -1,3 +1,6 @@
+import logging
+
+from django.db import transaction
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -5,13 +8,25 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from leads.models import Contact
+from leads.notifications import send_feedback_notification
 from leads.serializers import FeedbackMessageSerializer, SiteContactSerializer
+
+logger = logging.getLogger(__name__)
+
+
+def _notify_about_feedback(message_id: int) -> None:
+    try:
+        send_feedback_notification(message_id)
+    except Exception:
+        logger.exception('Ошибка при отправке уведомления о заявке #%s', message_id)
 
 
 def _persist_feedback(data):
     serializer = FeedbackMessageSerializer(data=data)
     serializer.is_valid(raise_exception=True)
-    serializer.save()
+    msg = serializer.save()
+    transaction.on_commit(lambda: _notify_about_feedback(msg.pk))
+    return msg
 
 
 class FeedbackCreateView(APIView):
@@ -20,7 +35,10 @@ class FeedbackCreateView(APIView):
     @extend_schema(
         tags=['Обращения'],
         summary='Отправить форму «Остались вопросы?»',
-        description='Обратная связь с сайта без регистрации.',
+        description=(
+            'Обратная связь с сайта без регистрации. '
+            'Письмо уходит на info@ (email запчастей / общие заявки).'
+        ),
         responses={201: None},
         request=FeedbackMessageSerializer,
     )
